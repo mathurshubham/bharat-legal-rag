@@ -81,7 +81,6 @@ async def query(
     cf_account_id: str | None = None,
     cf_gateway_id: str | None = None,
     x_openrouter_key: Annotated[str | None, Header()] = None,
-    x_cohere_key: Annotated[str | None, Header()] = None,
 ):
     if not x_openrouter_key:
         raise HTTPException(status_code=401, detail="X-OpenRouter-Key header required")
@@ -103,14 +102,14 @@ async def query(
     chunks = await retrieve(effective_q, mode=mode, top_k=top_k)
     retrieve_ms = int((time.perf_counter() - t0) * 1000)
 
-    # rerank → top_n (hard cap on what enters the generation prompt)
-    # Requires Cohere key (X-Cohere-Key header). No key → skip, take top_n direct.
+    # rerank → top_n via OpenRouter native rerank endpoint (same key as generation)
     t0 = time.perf_counter()
     rerank_ms = 0
-    if do_rerank and chunks and x_cohere_key:
+    if do_rerank and chunks:
         chunks = await rerank(
-            effective_q, chunks, top_n, x_cohere_key,
+            effective_q, chunks, top_n, x_openrouter_key,
             account_id=cf_account_id, gateway_id=cf_gateway_id,
+            model=reranker_model,
         )
         rerank_ms = int((time.perf_counter() - t0) * 1000)
     else:

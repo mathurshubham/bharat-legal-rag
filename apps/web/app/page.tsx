@@ -17,7 +17,7 @@ function newId() {
   return Math.random().toString(36).slice(2)
 }
 
-const _EMPTY_SETTINGS: Settings = { openrouterKey: "", cohereKey: "", cfAccountId: "", cfGatewayId: "" }
+const _EMPTY_SETTINGS: Settings = { openrouterKey: "", cfAccountId: "", cfGatewayId: "" }
 
 function loadSettings(): Settings {
   if (typeof window === "undefined") return _EMPTY_SETTINGS

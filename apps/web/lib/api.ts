@@ -12,7 +12,6 @@ export async function postQuery(
     "Content-Type": "application/json",
     "X-OpenRouter-Key": settings.openrouterKey,
   }
-  if (settings.cohereKey) headers["X-Cohere-Key"] = settings.cohereKey
 
   const params = new URLSearchParams({ mode: "hybrid" })
   if (settings.cfAccountId) params.set("cf_account_id", settings.cfAccountId)

@@ -60,7 +60,6 @@ export interface ChatMessage extends Turn {
 
 export interface Settings {
   openrouterKey: string
-  cohereKey: string
   cfAccountId: string
   cfGatewayId: string
 }
