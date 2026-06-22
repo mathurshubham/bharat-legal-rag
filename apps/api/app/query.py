@@ -99,7 +99,13 @@ async def query(
 
     # retrieve
     t0 = time.perf_counter()
-    chunks = await retrieve(effective_q, mode=mode, top_k=top_k)
+    chunks = await retrieve(
+        effective_q, mode=mode, top_k=top_k,
+        openrouter_key=x_openrouter_key,
+        hyde_model=None,
+        cf_account_id=cf_account_id,
+        cf_gateway_id=cf_gateway_id,
+    )
     retrieve_ms = int((time.perf_counter() - t0) * 1000)
 
     # rerank → top_n via OpenRouter native rerank endpoint (same key as generation)

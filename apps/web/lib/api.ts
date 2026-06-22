@@ -2,10 +2,13 @@ import type { QueryResponse, Turn, Settings } from "./types"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
 
+export type RetrievalMode = "hybrid" | "vanilla" | "bm25" | "hyde"
+
 export async function postQuery(
   q: string,
   history: Turn[],
   settings: Settings,
+  mode: RetrievalMode = "hybrid",
   signal?: AbortSignal,
 ): Promise<QueryResponse> {
   const headers: Record<string, string> = {
@@ -13,7 +16,7 @@ export async function postQuery(
     "X-OpenRouter-Key": settings.openrouterKey,
   }
 
-  const params = new URLSearchParams({ mode: "hybrid" })
+  const params = new URLSearchParams({ mode })
   if (settings.cfAccountId) params.set("cf_account_id", settings.cfAccountId)
   if (settings.cfGatewayId) params.set("cf_gateway_id", settings.cfGatewayId)
 
