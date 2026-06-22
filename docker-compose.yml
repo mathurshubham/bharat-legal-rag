@@ -1,0 +1,50 @@
+services:
+  db:
+    image: paradedb/paradedb:latest
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-legal}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-legal}
+      POSTGRES_DB: ${POSTGRES_DB:-legalrag}
+    volumes:
+      - db_data:/var/lib/postgresql
+      - ./apps/api/scripts/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5435:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-legal} -d ${POSTGRES_DB:-legalrag}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-legal}:${POSTGRES_PASSWORD:-legal}@db:5432/${POSTGRES_DB:-legalrag}
+    volumes:
+      - hf_cache:/root/.cache/huggingface
+      - ./corpus:/app/corpus
+      - ./apps/api/app/prompts:/app/app/prompts
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    env_file: .env
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+volumes:
+  db_data:
+  hf_cache:

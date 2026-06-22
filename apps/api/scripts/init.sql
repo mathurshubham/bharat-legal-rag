@@ -1,0 +1,26 @@
+CREATE EXTENSION IF NOT EXISTS vector;
+CREATE EXTENSION IF NOT EXISTS pg_search;
+
+CREATE TABLE IF NOT EXISTS chunks (
+    id          BIGSERIAL PRIMARY KEY,
+    doc_id      TEXT        NOT NULL,
+    doc_title   TEXT        NOT NULL,
+    section_ref TEXT        NOT NULL,
+    chunk_index INT         NOT NULL,
+    content     TEXT        NOT NULL,
+    tokens      INT         NOT NULL DEFAULT 0,
+    embedding   vector(1024),
+    metadata    JSONB       NOT NULL DEFAULT '{}',
+    embed_model TEXT,
+    embed_manifest JSONB
+);
+
+CREATE INDEX IF NOT EXISTS chunks_hnsw ON chunks
+    USING hnsw (embedding vector_cosine_ops);
+
+CREATE INDEX IF NOT EXISTS chunks_bm25 ON chunks
+    USING bm25 (id, content, doc_title, section_ref)
+    WITH (key_field='id');
+
+CREATE INDEX IF NOT EXISTS chunks_doc_id ON chunks (doc_id);
+CREATE INDEX IF NOT EXISTS chunks_section_ref ON chunks (doc_id, section_ref);

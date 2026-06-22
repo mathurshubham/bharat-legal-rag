@@ -1,0 +1,66 @@
+REPEAL AND REPLACEMENT MAPPING REFERENCE
+Indian Criminal and Civil Law — Key Statutory Replacements
+
+This document maps provisions of repealed Indian statutes to their replacements.
+Use to identify the current applicable law when a query cites a repealed statute.
+
+=============================================================================
+IPC (Indian Penal Code 1860) → BNS (Bharatiya Nyaya Sanhita 2023)
+=============================================================================
+
+Section IPC:302 (Murder) → BNS s.103 (Murder / culpable homicide amounting to murder)
+Section IPC:304 (Culpable homicide) → BNS s.105 (Culpable homicide not amounting to murder)
+Section IPC:375 (Rape) → BNS s.63 (Rape)
+Section IPC:376 (Punishment for rape) → BNS s.64 (Punishment for rape)
+Section IPC:378 (Theft) → BNS s.303 (Theft)
+Section IPC:379 (Punishment for theft) → BNS s.303 (Punishment for theft)
+Section IPC:390 (Robbery) → BNS s.309 (Robbery)
+Section IPC:391 (Dacoity) → BNS s.310 (Dacoity)
+Section IPC:420 (Cheating) → BNS s.318 (Cheating)
+Section IPC:498A (Cruelty by husband) → BNS s.85 (Cruelty by husband or relatives)
+Section IPC:34 (Acts by several persons in furtherance of common intention) → BNS s.3(5)
+Section IPC:120B (Criminal conspiracy) → BNS s.61 (Criminal conspiracy)
+
+NOTE: IPC was repealed and replaced by BNS effective 1 July 2024.
+NOTE: The Bharatiya Nyaya Sanhita 2023 is indexed in full in this corpus.
+
+=============================================================================
+CrPC (Code of Criminal Procedure 1973) → BNSS (Bharatiya Nagarik Suraksha Sanhita 2023)
+=============================================================================
+
+Section CrPC:154 (FIR) → BNSS s.173 (Information in cognizable cases / FIR)
+Section CrPC:161 (Examination of witnesses) → BNSS s.180
+Section CrPC:173 (Police report / charge sheet) → BNSS s.193
+Section CrPC:197 (Prosecution of judges/public servants) → BNSS s.218
+Section CrPC:300 (Person once convicted not to be tried again) → BNSS s.337
+Section CrPC:437 (Bail in non-bailable offences) → BNSS s.480
+Section CrPC:482 (Inherent powers of High Court) → BNSS s.528
+
+NOTE: CrPC was repealed and replaced by BNSS effective 1 July 2024.
+NOTE: The Bharatiya Nagarik Suraksha Sanhita 2023 IS indexed in full in this corpus.
+
+=============================================================================
+Indian Evidence Act 1872 → Bharatiya Sakshya Adhiniyam 2023 (BSA)
+=============================================================================
+
+Section Evidence:3 (Definitions — evidence, proved, etc.) → BSA s.2
+Section Evidence:45 (Opinions of experts) → BSA s.39
+Section Evidence:65B (Admissibility of electronic records) → BSA s.63
+Section Evidence:101–102 (Burden of proof) → BSA s.104–105
+
+NOTE: Indian Evidence Act 1872 was repealed and replaced by BSA effective 1 July 2024.
+NOTE: The Bharatiya Sakshya Adhiniyam 2023 IS indexed in full in this corpus.
+
+=============================================================================
+Consumer Protection Act 1986 → Consumer Protection Act 2019
+=============================================================================
+
+Section CP1986:2(d) (Consumer definition) → CP2019 s.2(7) (Consumer definition)
+Section CP1986:3 (Complaint) → CP2019 s.2(6) (Complaint definition)
+Section CP1986:11 (District Forum jurisdiction) → CP2019 s.34 (District Commission jurisdiction)
+Section CP1986:17 (State Commission) → CP2019 s.47 (State Commission jurisdiction)
+Section CP1986:21 (National Commission) → CP2019 s.58 (National Commission jurisdiction)
+Section CP1986:14 (Findings of District Forum / relief) → CP2019 s.39 (Relief by District Commission)
+
+NOTE: Consumer Protection Act 1986 was repealed and replaced by CP 2019.
+NOTE: Consumer Protection Act 2019 full text IS indexed in this corpus.
