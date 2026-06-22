@@ -3,14 +3,18 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+import os
+
 from .db import close_pool, get_pool
-from .embed import get_embedder
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await get_pool()
-    get_embedder()
+    # Warm local embedder only when OpenRouter API key not set
+    if not os.getenv("OPENROUTER_API_KEY"):
+        from .embed import get_embedder
+        get_embedder()
     yield
     await close_pool()
 
