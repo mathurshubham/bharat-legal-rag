@@ -14,6 +14,11 @@ const REFUSAL_MARKERS = [
   "not in the available",
   "please consult",
   "does not contain",
+  "cannot be cited",
+  "not part of",
+  "not indexed",
+  "outside the statutes",
+  "not available in",
 ]
 
 const OLD_LAW_MARKERS = [
