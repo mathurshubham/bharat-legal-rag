@@ -6,6 +6,7 @@ import { postQuery, type RetrievalMode } from "@/lib/api"
 import { MessageBubble } from "./components/MessageBubble"
 import { ChunksPanel } from "./components/ChunksPanel"
 import { SettingsPanel } from "./components/SettingsPanel"
+import { TryEvalExportModal } from "./components/TryEvalExportModal"
 
 const SUGGESTED = [
   { q: "What is the punishment for murder under BNS 2023?",      icon: "⚖" },
@@ -40,6 +41,7 @@ export default function ChatPage() {
   const [settings, setSettings]       = useState<Settings>(loadSettings)
   const [activeSources, setActiveSources] = useState<string | null>(null)
   const [mode, setMode] = useState<RetrievalMode>("hybrid")
+  const [showTryEval, setShowTryEval] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef  = useRef<HTMLTextAreaElement>(null)
   const abortRef  = useRef<AbortController | null>(null)
@@ -126,6 +128,15 @@ export default function ChatPage() {
             </svg>
             Not legal advice
           </div>
+
+          <button
+            onClick={() => setShowTryEval(true)}
+            className="hidden sm:flex items-center gap-1.5 text-xs text-slate-500 hover:text-indigo-700 border border-slate-200 rounded-lg px-3 py-1.5 hover:bg-indigo-50 hover:border-indigo-300 transition-colors"
+            title="Export endpoint config to TryEval"
+          >
+            <div className="w-4 h-4 rounded bg-indigo-600 flex items-center justify-center text-white text-[9px] font-bold">T</div>
+            TryEval
+          </button>
 
           <button
             onClick={() => setShowSettings(true)}
@@ -274,6 +285,14 @@ export default function ChatPage() {
           settings={settings}
           onSave={handleSettings}
           onClose={() => setShowSettings(false)}
+        />
+      )}
+
+      {showTryEval && (
+        <TryEvalExportModal
+          settings={settings}
+          mode={mode}
+          onClose={() => setShowTryEval(false)}
         />
       )}
     </div>
