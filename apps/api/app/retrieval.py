@@ -11,6 +11,7 @@ import asyncio
 from typing import Any
 
 import psycopg
+from psycopg.rows import dict_row
 
 from .db import get_pool
 from .embed import embed_query
@@ -23,7 +24,7 @@ async def _dense(
     vec: list[float],
     top_k: int,
 ) -> list[dict]:
-    rows = await conn.execute(
+    cur = await conn.execute(
         """
         SELECT id, doc_id, doc_title, section_ref, content,
                1 - (embedding <=> %s::vector) AS score
@@ -33,7 +34,7 @@ async def _dense(
         """,
         (vec, vec, top_k),
     )
-    return [dict(r) for r in await rows.fetchall()]
+    return await cur.fetchall()
 
 
 async def _bm25(
@@ -41,7 +42,7 @@ async def _bm25(
     query: str,
     top_k: int,
 ) -> list[dict]:
-    rows = await conn.execute(
+    cur = await conn.execute(
         """
         SELECT id, doc_id, doc_title, section_ref, content,
                paradedb.score(id) AS score
@@ -52,7 +53,7 @@ async def _bm25(
         """,
         (query, top_k),
     )
-    return [dict(r) for r in await rows.fetchall()]
+    return await cur.fetchall()
 
 
 def _rrf(
@@ -89,6 +90,7 @@ async def retrieve(
 ) -> list[dict]:
     pool = await get_pool()
     async with pool.connection() as conn:
+        conn.row_factory = dict_row
         if mode == "vanilla":
             vec = embed_query([query])[0]
             return await _dense(conn, vec, top_k)
