@@ -17,16 +17,15 @@ function newId() {
   return Math.random().toString(36).slice(2)
 }
 
+const _EMPTY_SETTINGS: Settings = { openrouterKey: "", cohereKey: "", cfAccountId: "", cfGatewayId: "" }
+
 function loadSettings(): Settings {
-  if (typeof window === "undefined") return { openrouterKey: "", cfAccountId: "", cfGatewayId: "" }
+  if (typeof window === "undefined") return _EMPTY_SETTINGS
   try {
-    return JSON.parse(localStorage.getItem("legal-rag-settings") ?? "null") ?? {
-      openrouterKey: "",
-      cfAccountId: "",
-      cfGatewayId: "",
-    }
+    const stored = JSON.parse(localStorage.getItem("legal-rag-settings") ?? "null")
+    return stored ? { ..._EMPTY_SETTINGS, ...stored } : _EMPTY_SETTINGS
   } catch {
-    return { openrouterKey: "", cfAccountId: "", cfGatewayId: "" }
+    return _EMPTY_SETTINGS
   }
 }
 

@@ -1,48 +1,60 @@
+"""
+API-only reranker — no local model.
+Default: Cohere Rerank v3.5 (direct or via Cloudflare AI Gateway).
+No Cohere key → skip reranking, caller takes top_n direct from retrieval.
+"""
 import os
 from typing import Any
 
-from sentence_transformers import CrossEncoder
+import httpx
 
-_MODEL_ID = os.getenv("RERANKER_MODEL", "BAAI/bge-reranker-v2-m3")
-_reranker: CrossEncoder | None = None
-
-
-def get_reranker() -> CrossEncoder:
-    global _reranker
-    if _reranker is None:
-        _reranker = CrossEncoder(_MODEL_ID, max_length=512)
-    return _reranker
+_CF_BASE = "https://gateway.ai.cloudflare.com/v1"
+_COHERE_DIRECT = "https://api.cohere.com/v2/rerank"
+_COHERE_MODEL = os.getenv("RERANKER_MODEL", "rerank-v3.5")
+_TIMEOUT = 30.0
 
 
-def rerank(query: str, chunks: list[dict], top_n: int) -> list[dict]:
-    if not chunks:
-        return chunks
-    model = get_reranker()
-    pairs = [(query, c["content"]) for c in chunks]
-    scores = model.predict(pairs, show_progress_bar=False).tolist()
-    for chunk, score in zip(chunks, scores):
-        chunk["rerank_score"] = float(score)
-    ranked = sorted(chunks, key=lambda c: c["rerank_score"], reverse=True)
-    return ranked[:top_n]
+def _cohere_url(account_id: str, gateway_id: str) -> str:
+    if account_id and gateway_id:
+        return f"{_CF_BASE}/{account_id}/{gateway_id}/cohere/v2/rerank"
+    return _COHERE_DIRECT
 
 
-async def rerank_with_cohere(
+async def rerank(
     query: str,
     chunks: list[dict],
     top_n: int,
     cohere_key: str,
+    *,
+    account_id: str | None = None,
+    gateway_id: str | None = None,
 ) -> list[dict]:
-    import httpx
+    if not chunks:
+        return chunks
 
+    url = _cohere_url(
+        account_id or os.getenv("CF_ACCOUNT_ID", ""),
+        gateway_id or os.getenv("CF_GATEWAY_ID", ""),
+    )
     docs = [c["content"] for c in chunks]
-    async with httpx.AsyncClient(timeout=30) as client:
+
+    async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
         resp = await client.post(
-            "https://api.cohere.com/v2/rerank",
-            headers={"Authorization": f"Bearer {cohere_key}", "Content-Type": "application/json"},
-            json={"model": "rerank-v3.5", "query": query, "documents": docs, "top_n": top_n},
+            url,
+            headers={
+                "Authorization": f"Bearer {cohere_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": _COHERE_MODEL,
+                "query": query,
+                "documents": docs,
+                "top_n": top_n,
+            },
         )
     resp.raise_for_status()
     results = resp.json()["results"]
+
     out = []
     for r in results:
         chunk = dict(chunks[r["index"]])

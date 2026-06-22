@@ -30,6 +30,20 @@ export function SettingsPanel({ settings, onSave, onClose }: Props) {
           </label>
 
           <label className="block">
+            <span className="text-sm font-medium text-gray-700">
+              Cohere API Key
+              <span className="ml-1 text-xs text-gray-400 font-normal">(reranking — optional, free tier available)</span>
+            </span>
+            <input
+              type="password"
+              className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              placeholder="..."
+              value={draft.cohereKey}
+              onChange={e => setDraft(d => ({ ...d, cohereKey: e.target.value }))}
+            />
+          </label>
+
+          <label className="block">
             <span className="text-sm font-medium text-gray-700">Cloudflare Account ID</span>
             <input
               type="text"

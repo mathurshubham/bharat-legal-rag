@@ -5,14 +5,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .db import close_pool, get_pool
 from .embed import get_embedder
-from .rerank import get_reranker
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await get_pool()
     get_embedder()
-    get_reranker()
     yield
     await close_pool()
 

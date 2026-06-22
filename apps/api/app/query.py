@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field
 
 from .condense import condense_query
 from .gateway import chat_completion
-from .rerank import rerank, rerank_with_cohere
+from .rerank import rerank
 from .retrieval import retrieve
 
 router = APIRouter()
@@ -104,13 +104,14 @@ async def query(
     retrieve_ms = int((time.perf_counter() - t0) * 1000)
 
     # rerank → top_n (hard cap on what enters the generation prompt)
+    # Requires Cohere key (X-Cohere-Key header). No key → skip, take top_n direct.
     t0 = time.perf_counter()
     rerank_ms = 0
-    if do_rerank and chunks:
-        if x_cohere_key:
-            chunks = await rerank_with_cohere(effective_q, chunks, top_n, x_cohere_key)
-        else:
-            chunks = rerank(effective_q, chunks, top_n)
+    if do_rerank and chunks and x_cohere_key:
+        chunks = await rerank(
+            effective_q, chunks, top_n, x_cohere_key,
+            account_id=cf_account_id, gateway_id=cf_gateway_id,
+        )
         rerank_ms = int((time.perf_counter() - t0) * 1000)
     else:
         chunks = chunks[:top_n]
