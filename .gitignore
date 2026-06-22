@@ -9,3 +9,4 @@ apps/api/scripts/__pycache__/
 *.pyc
 *.pyo
 corpus/raw/
+*.dump
