@@ -48,3 +48,22 @@ export async function fetchDemos(): Promise<DemoMeta[]> {
   const data = await resp.json()
   return data.demos ?? []
 }
+
+export interface CorpusDocument {
+  doc_id: string
+  doc_title: string
+  chunk_count: number
+  section_count: number
+}
+
+export interface CorpusInfo {
+  demo_id: string
+  documents: CorpusDocument[]
+  total_chunks: number
+}
+
+export async function fetchCorpus(demo: string): Promise<CorpusInfo | null> {
+  const resp = await fetch(`${API_URL}/api/${demo}/corpus`)
+  if (!resp.ok) return null
+  return resp.json()
+}

@@ -8,6 +8,7 @@ import { MessageBubble } from "../components/MessageBubble"
 import { ChunksPanel } from "../components/ChunksPanel"
 import { SettingsPanel } from "../components/SettingsPanel"
 import { TryEvalExportModal } from "../components/TryEvalExportModal"
+import { CorpusModal } from "../components/CorpusModal"
 
 // Per-demo configs — add new demos here as they are built
 import lawConfig       from "../../demos/law/web_config"
@@ -51,6 +52,7 @@ export default function DemoPage({ params }: { params: Promise<{ demo: string }>
   const [activeSources, setActiveSources] = useState<string | null>(null)
   const [mode, setMode]                   = useState<RetrievalMode>("hybrid")
   const [showTryEval, setShowTryEval]     = useState(false)
+  const [showCorpus, setShowCorpus]       = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef  = useRef<HTMLTextAreaElement>(null)
   const abortRef  = useRef<AbortController | null>(null)
@@ -141,6 +143,17 @@ export default function DemoPage({ params }: { params: Promise<{ demo: string }>
             </svg>
             {config.disclaimerChip}
           </div>
+
+          <button
+            onClick={() => setShowCorpus(true)}
+            className="hidden sm:flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 border border-slate-200 rounded-lg px-3 py-1.5 hover:bg-slate-50 transition-colors"
+            title="View indexed corpus"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+            Corpus
+          </button>
 
           <button
             onClick={() => setShowTryEval(true)}
@@ -307,6 +320,14 @@ export default function DemoPage({ params }: { params: Promise<{ demo: string }>
           settings={settings}
           mode={mode}
           onClose={() => setShowTryEval(false)}
+        />
+      )}
+
+      {showCorpus && (
+        <CorpusModal
+          demo={demo}
+          config={config}
+          onClose={() => setShowCorpus(false)}
         />
       )}
     </div>
