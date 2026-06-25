@@ -1,0 +1,143 @@
+# Law demo — substring-asserting section validation checks.
+# Format: {doc_id, section_ref, substring, description}
+# Every check asserts the substring appears in the combined content of the matching chunks.
+# Mere ref existence is NOT sufficient — content is verified.
+
+checks:
+  # BNS 2023
+  - doc_id: BNS_2023
+    section_ref: "BNS s.103"
+    substring: "murder"
+    description: "BNS 103 = punishment for murder"
+
+  - doc_id: BNS_2023
+    section_ref: "BNS s.63"
+    substring: "rape"
+    description: "BNS 63 = rape"
+
+  - doc_id: BNS_2023
+    section_ref: "BNS s.309"
+    substring: "robbery"
+    description: "BNS 309 = robbery"
+
+  - doc_id: BNS_2023
+    section_ref: "BNS s.2"
+    substring: "definitions"
+    description: "BNS 2 = definitions"
+
+  - doc_id: BNS_2023
+    section_ref: "BNS s.4"
+    substring: "punishments"
+    description: "BNS 4 = punishments"
+
+  # Constitution
+  - doc_id: CONSTITUTION
+    section_ref: "Art. 14"
+    substring: "equality"
+    description: "Art. 14 = equality before law"
+
+  - doc_id: CONSTITUTION
+    section_ref: "Art. 19"
+    substring: "freedom"
+    description: "Art. 19 = freedoms"
+
+  - doc_id: CONSTITUTION
+    section_ref: "Art. 21"
+    substring: "life and personal liberty"
+    description: "Art. 21 = right to life"
+
+  - doc_id: CONSTITUTION
+    section_ref: "Art. 32"
+    substring: "remedies"
+    description: "Art. 32 = constitutional remedies"
+
+  - doc_id: CONSTITUTION
+    section_ref: "Art. 226"
+    substring: "High Court"
+    description: "Art. 226 = HC writ jurisdiction"
+
+  # Contract Act 1872
+  - doc_id: CONTRACT_ACT_1872
+    section_ref: "Contract Act s.2"
+    substring: "proposal"
+    description: "s.2 = definitions (proposal)"
+
+  - doc_id: CONTRACT_ACT_1872
+    section_ref: "Contract Act s.10"
+    substring: "competent"
+    description: "s.10 = competency to contract"
+
+  - doc_id: CONTRACT_ACT_1872
+    section_ref: "Contract Act s.73"
+    substring: "compensation"
+    description: "s.73 = damages on breach"
+
+  # Consumer Protection 2019
+  - doc_id: CONSUMER_PROTECTION_2019
+    section_ref: "CP s.2"
+    substring: "consumer"
+    description: "s.2 = definitions (consumer)"
+
+  - doc_id: CONSUMER_PROTECTION_2019
+    section_ref: "CP s.35"
+    substring: "complaint"
+    description: "s.35 = complaint before District Commission"
+
+  - doc_id: CONSUMER_PROTECTION_2019
+    section_ref: "CP s.17"
+    substring: "consumer rights"
+    description: "s.17 = CCPA — violation of consumer rights"
+
+  # DPDP 2023
+  - doc_id: DPDP_2023
+    section_ref: "DPDP s.2"
+    substring: "personal data"
+    description: "s.2 = definitions"
+
+  - doc_id: DPDP_2023
+    section_ref: "DPDP s.4"
+    substring: "processing"
+    description: "s.4 = grounds for processing"
+
+  - doc_id: DPDP_2023
+    section_ref: "DPDP s.8"
+    substring: "obligations"
+    description: "s.8 = obligations of data fiduciary"
+
+  # BNSS 2023
+  - doc_id: BNSS_2023
+    section_ref: "BNSS s.173"
+    substring: "cognizable"
+    description: "BNSS 173 = FIR / information in cognizable cases"
+
+  - doc_id: BNSS_2023
+    section_ref: "BNSS s.480"
+    substring: "bail"
+    description: "BNSS 480 = bail in non-bailable offences"
+
+  - doc_id: BNSS_2023
+    section_ref: "BNSS s.2"
+    substring: "definitions"
+    description: "BNSS 2 = definitions"
+
+  # BSA 2023
+  - doc_id: BSA_2023
+    section_ref: "BSA s.2"
+    substring: "evidence"
+    description: "BSA 2 = definitions (evidence)"
+
+  - doc_id: BSA_2023
+    section_ref: "BSA s.39"
+    substring: "expert"
+    description: "BSA 39 = opinions of experts"
+
+  - doc_id: BSA_2023
+    section_ref: "BSA s.63"
+    substring: "electronic"
+    description: "BSA 63 = admissibility of electronic records"
+
+  # LAW_MAPPINGS crosswalk (no section patterns matched → fallback ref)
+  - doc_id: LAW_MAPPINGS
+    section_ref: "LAW_MAPPINGS:full"
+    substring: "BNS"
+    description: "IPC→BNS mapping present"

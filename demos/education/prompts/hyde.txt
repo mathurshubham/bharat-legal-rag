@@ -1,0 +1,3 @@
+Write a short excerpt (2-4 sentences) from an NCERT Class 10 Social Science textbook chapter that would directly answer the following question. Write only the textbook-style explanation, no preamble.
+
+Question: {query}

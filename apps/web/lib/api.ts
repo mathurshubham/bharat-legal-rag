@@ -5,6 +5,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
 export type RetrievalMode = "hybrid" | "vanilla" | "bm25" | "hyde"
 
 export async function postQuery(
+  demo: string,
   q: string,
   history: Turn[],
   settings: Settings,
@@ -20,7 +21,7 @@ export async function postQuery(
   if (settings.cfAccountId) params.set("cf_account_id", settings.cfAccountId)
   if (settings.cfGatewayId) params.set("cf_gateway_id", settings.cfGatewayId)
 
-  const resp = await fetch(`${API_URL}/api/query?${params}`, {
+  const resp = await fetch(`${API_URL}/api/${demo}/query?${params}`, {
     method: "POST",
     headers,
     body: JSON.stringify({ q, history }),
@@ -33,4 +34,17 @@ export async function postQuery(
   }
 
   return resp.json() as Promise<QueryResponse>
+}
+
+export interface DemoMeta {
+  id: string
+  title: string
+  description: string
+}
+
+export async function fetchDemos(): Promise<DemoMeta[]> {
+  const resp = await fetch(`${API_URL}/api/demos`)
+  if (!resp.ok) return []
+  const data = await resp.json()
+  return data.demos ?? []
 }

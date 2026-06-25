@@ -1,0 +1,3 @@
+Write a short excerpt (2-4 sentences) from a public health fact sheet that would directly answer the following question. Write only general health information describing symptoms, prevention, or background — never dosage, diagnosis, or emergency advice.
+
+Question: {query}

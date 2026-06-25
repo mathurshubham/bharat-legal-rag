@@ -1,0 +1,3 @@
+You are a legal drafting assistant. Write a short excerpt (2-4 sentences) from an Indian statute or legal provision that would directly answer the following question. Write only the provision text, no preamble.
+
+Question: {query}

@@ -78,7 +78,7 @@ export function SettingsPanel({ settings, onSave, onClose }: Props) {
             />
             <Field
               label="Gateway ID"
-              placeholder="legal-rag-gateway"
+              placeholder="my-rag-gateway"
               value={draft.cfGatewayId}
               onChange={v => setDraft(d => ({ ...d, cfGatewayId: v }))}
             />

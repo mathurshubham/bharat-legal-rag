@@ -1,0 +1,41 @@
+DENGUE AND SEVERE DENGUE — WHO FACT SHEET
+
+Key Facts
+
+Dengue is a viral infection transmitted through infected mosquito bites. Approximately half the world's population faces dengue risk, with an estimated 100–400 million infections annually. The disease thrives in tropical and subtropical climates, primarily in urban settings. While many infections are asymptomatic or mild, dengue can occasionally cause severe illness or death. Vector control remains the primary prevention strategy, as no specific treatment exists. Early detection and proper medical care significantly reduce severe dengue fatality rates.
+
+Overview
+
+Dengue, commonly called break-bone fever, spreads from mosquitoes to people and occurs more frequently in tropical and subtropical regions. Most infected individuals experience no symptoms. Those experiencing illness typically report high fever, headache, body aches, nausea and rash, recovering within 1–2 weeks. Some cases progress to severe dengue requiring hospitalization. Pain management forms the treatment approach, with no specific cure currently available.
+
+Symptoms
+
+Most dengue cases present mild or absent symptoms, resolving within 1–2 weeks. Severe dengue, though rare, may prove fatal. Symptoms typically emerge 4–10 days after infection and persist 2–7 days, including: high fever (40°C/104°F), severe headache, pain behind the eyes, muscle and joint pains, nausea, vomiting, swollen glands, rash.
+
+Second infections carry elevated severe dengue risk. Severe dengue symptoms appearing after fever subsides include: severe abdominal pain, persistent vomiting, rapid breathing, bleeding gums or nose, fatigue, restlessness, blood in vomit or stool. Individuals exhibiting severe symptoms require immediate medical attention. Post-recovery fatigue may persist for several weeks.
+
+Diagnostics and Treatment
+
+Laboratory diagnostics prove essential for dengue control and management. Testing methods include nucleic acid amplification tests, enzyme-linked immunosorbent assays, and rapid diagnostic tests. Direct detection methods — virus isolation, molecular detection, and antigen testing — work within the first illness week.
+
+No specific treatment for dengue exists currently. Pain management relies on paracetamol. Non-steroidal anti-inflammatory drugs like ibuprofen and aspirin should be avoided due to increased bleeding risk. Severe dengue cases frequently require hospitalization.
+
+Transmission
+
+Female mosquitoes of the Aedes aegypti species primarily transmit dengue virus to humans. The extrinsic incubation period typically requires about 8–12 days when the ambient temperature is 25–28°C. Once infectious, mosquitoes transmit virus throughout their remaining lifespan.
+
+Mosquitoes become infected through contact with viremic people, including those with symptomatic infections, pre-symptomatic individuals, and asymptomatic persons. Transmission can occur up to 2 days before someone shows symptoms of the illness, and up to 2 days after the fever has resolved.
+
+Risk Factors
+
+Previous dengue infection elevates severe dengue development risk. Rapid, unplanned urbanization associates with transmission through population density, human mobility, water access, and storage practices.
+
+Prevention and Control
+
+Dengue-spreading mosquitoes remain active during daylight. Risk reduction involves protecting against bites using: clothes that cover as much of your body as possible; mosquito nets, ideally sprayed with insect repellent; window screens; mosquito repellents (containing DEET, Picaridin or IR3535); and coils and vaporizers.
+
+Mosquito breeding prevention includes implementing environmental management, disposing of solid waste properly, removing water-holding artificial habitats, covering and cleaning domestic water storage containers weekly, and applying insecticides to outdoor water containers.
+
+One licensed vaccine (QDenga) is available in some countries, recommended for ages 6–16 years in high transmission settings.
+
+Source: World Health Organization Fact Sheet on Dengue. https://www.who.int/news-room/fact-sheets/detail/dengue-and-severe-dengue

@@ -1,0 +1,64 @@
+demo_id: law
+title: "Vidhi — Indian Legal RAG"
+description: "Grounded answers from Indian statutes"
+
+doc_titles:
+  BNS_2023: "Bharatiya Nyaya Sanhita 2023"
+  BNSS_2023: "Bharatiya Nagarik Suraksha Sanhita 2023"
+  BSA_2023: "Bharatiya Sakshya Adhiniyam 2023"
+  CONTRACT_ACT_1872: "Indian Contract Act 1872"
+  CONSUMER_PROTECTION_2019: "Consumer Protection Act 2019"
+  DPDP_2023: "Digital Personal Data Protection Act 2023"
+  CONSTITUTION: "Constitution of India"
+  LAW_MAPPINGS: "Law Repeal Mappings Reference"
+
+doc_shorts:
+  BNS_2023: "BNS"
+  BNSS_2023: "BNSS"
+  BSA_2023: "BSA"
+  CONTRACT_ACT_1872: "Contract Act"
+  CONSUMER_PROTECTION_2019: "CP"
+  DPDP_2023: "DPDP"
+  CONSTITUTION: "Constitution"
+  LAW_MAPPINGS: "Mappings"
+
+section:
+  patterns:
+    - "^(?:Section\\s+)?(\\d+[A-Z]?)\\.\\s"
+    - "^Article\\s+(\\d+[A-Z]?)\\b"
+    - "^(Schedule\\s+[IVXLC]+|PART\\s+[IVXLC]+)\\b"
+  format_default: "{short} s.{n}"
+  format_overrides:
+    CONSTITUTION: "Art. {n}"
+  normalizer_overrides:
+    CONSTITUTION: normalise_constitution
+
+guard:
+  corpus_doc_id: LAW_MAPPINGS
+  ui_markers:
+    - "repealed statute"
+    - "repealed law"
+    - "ipc"
+    - "crpc"
+    - "indian evidence act"
+    - "consumer protection act 1986"
+  ui_banner: "References repealed law — current statute shown below."
+
+refusal:
+  ui_markers:
+    - "cannot answer"
+    - "i cannot answer"
+    - "not in the available"
+    - "please consult"
+    - "does not contain"
+    - "cannot be cited"
+    - "not part of"
+    - "not indexed"
+    - "outside the statutes"
+    - "not available in"
+  ui_banner: "Insufficient context — this question falls outside the indexed corpus."
+
+prompts:
+  system_default_version: v1
+  hyde_path: prompts/hyde.txt
+  # condense is engine-level (apps/api/app/prompts/condense.txt) — not per-demo by design

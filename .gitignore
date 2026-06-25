@@ -10,3 +10,5 @@ apps/api/scripts/__pycache__/
 *.pyo
 corpus/raw/
 *.dump
+apps/api/.DS_Store
+apps/api/uv.lock

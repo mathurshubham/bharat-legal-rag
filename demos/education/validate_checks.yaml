@@ -1,0 +1,87 @@
+# section_ref: "*" checks combined content of all chunks for that doc_id
+# (NCERT PDFs produce noisy section refs from pypdf extraction)
+checks:
+  - doc_id: HIST_CH1_NATIONALISM_EUROPE
+    section_ref: "*"
+    substring: "nationalism"
+    description: "nationalism in History Ch.1"
+
+  - doc_id: HIST_CH1_NATIONALISM_EUROPE
+    section_ref: "*"
+    substring: "Napoleon"
+    description: "Napoleon mentioned in History Ch.1"
+
+  - doc_id: HIST_CH2_NATIONALISM_INDIA
+    section_ref: "*"
+    substring: "Gandhi"
+    description: "Gandhi in History Ch.2"
+
+  - doc_id: HIST_CH2_NATIONALISM_INDIA
+    section_ref: "*"
+    substring: "Non-Cooperation"
+    description: "Non-Cooperation Movement in History Ch.2"
+
+  - doc_id: HIST_CH3_GLOBAL_WORLD
+    section_ref: "*"
+    substring: "trade"
+    description: "trade in History Ch.3"
+
+  - doc_id: GEO_CH1_RESOURCES
+    section_ref: "*"
+    substring: "resource"
+    description: "resource in Geography Ch.1"
+
+  - doc_id: GEO_CH1_RESOURCES
+    section_ref: "*"
+    substring: "soil"
+    description: "soil in Geography Ch.1"
+
+  - doc_id: GEO_CH2_FOREST_WILDLIFE
+    section_ref: "*"
+    substring: "forest"
+    description: "forest in Geography Ch.2"
+
+  - doc_id: GEO_CH2_FOREST_WILDLIFE
+    section_ref: "*"
+    substring: "wildlife"
+    description: "wildlife in Geography Ch.2"
+
+  - doc_id: ECON_CH1_DEVELOPMENT
+    section_ref: "*"
+    substring: "development"
+    description: "development in Economics Ch.1"
+
+  - doc_id: ECON_CH1_DEVELOPMENT
+    section_ref: "*"
+    substring: "income"
+    description: "income in Economics Ch.1"
+
+  - doc_id: ECON_CH2_SECTORS
+    section_ref: "*"
+    substring: "primary"
+    description: "primary sector in Economics Ch.2"
+
+  - doc_id: ECON_CH2_SECTORS
+    section_ref: "*"
+    substring: "secondary"
+    description: "secondary sector in Economics Ch.2"
+
+  - doc_id: CIVICS_CH1_POWER_SHARING
+    section_ref: "CIVICS_CH1_POWER_SHARING:full"
+    substring: "power"
+    description: "power sharing in Civics Ch.1"
+
+  - doc_id: CIVICS_CH1_POWER_SHARING
+    section_ref: "CIVICS_CH1_POWER_SHARING:full"
+    substring: "Belgium"
+    description: "Belgium case study in Civics Ch.1"
+
+  - doc_id: CIVICS_CH2_FEDERALISM
+    section_ref: "CIVICS_CH2_FEDERALISM:full"
+    substring: "federal"
+    description: "federalism in Civics Ch.2"
+
+  - doc_id: CIVICS_CH2_FEDERALISM
+    section_ref: "CIVICS_CH2_FEDERALISM:full"
+    substring: "state"
+    description: "state governments in Civics Ch.2"

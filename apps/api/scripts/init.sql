@@ -3,6 +3,7 @@ CREATE EXTENSION IF NOT EXISTS pg_search;
 
 CREATE TABLE IF NOT EXISTS chunks (
     id          BIGSERIAL PRIMARY KEY,
+    demo_id     TEXT        NOT NULL,
     doc_id      TEXT        NOT NULL,
     doc_title   TEXT        NOT NULL,
     section_ref TEXT        NOT NULL,
@@ -18,9 +19,11 @@ CREATE TABLE IF NOT EXISTS chunks (
 CREATE INDEX IF NOT EXISTS chunks_hnsw ON chunks
     USING hnsw (embedding vector_cosine_ops);
 
+-- demo_id included in BM25 index so WHERE demo_id = :demo fuses into the index walk
+-- (applied as heap_filter during the walk — single-step, no post-scan)
 CREATE INDEX IF NOT EXISTS chunks_bm25 ON chunks
-    USING bm25 (id, content, doc_title, section_ref)
+    USING bm25 (id, content, doc_title, section_ref, demo_id)
     WITH (key_field='id');
 
-CREATE INDEX IF NOT EXISTS chunks_doc_id ON chunks (doc_id);
-CREATE INDEX IF NOT EXISTS chunks_section_ref ON chunks (doc_id, section_ref);
+CREATE INDEX IF NOT EXISTS chunks_demo_doc ON chunks (demo_id, doc_id);
+CREATE INDEX IF NOT EXISTS chunks_demo_section ON chunks (demo_id, doc_id, section_ref);
