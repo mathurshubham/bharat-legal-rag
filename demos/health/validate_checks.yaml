@@ -1,0 +1,90 @@
+checks:
+  - doc_id: DIABETES_WHO
+    section_ref: "Diabetes — Symptoms"
+    substring: "thirst"
+    description: "polydipsia listed as diabetes symptom"
+
+  - doc_id: DIABETES_WHO
+    section_ref: "Diabetes — Prevention"
+    substring: "physically active"
+    description: "physical activity listed as prevention (text says 'physically active')"
+
+  - doc_id: DIABETES_WHO
+    section_ref: "Diabetes — Overview"
+    substring: "insulin"
+    description: "insulin mentioned in overview"
+
+  - doc_id: HYPERTENSION_WHO
+    section_ref: "Hypertension — Symptoms"
+    substring: "headache"
+    description: "headache listed as hypertension symptom"
+
+  - doc_id: HYPERTENSION_WHO
+    section_ref: "Hypertension — Prevention"
+    substring: "salt"
+    description: "salt reduction in hypertension prevention"
+
+  - doc_id: HYPERTENSION_WHO
+    section_ref: "Hypertension — Overview"
+    substring: "140"
+    description: "140/90 threshold mentioned in hypertension overview"
+
+  - doc_id: TUBERCULOSIS_WHO
+    section_ref: "Tuberculosis — Symptoms"
+    substring: "cough"
+    description: "cough listed as TB symptom"
+
+  - doc_id: TUBERCULOSIS_WHO
+    section_ref: "Tuberculosis — Treatment"
+    substring: "rifampicin"
+    description: "rifampicin listed as TB treatment"
+
+  - doc_id: DENGUE_WHO
+    section_ref: "Dengue — Symptoms"
+    substring: "fever"
+    description: "fever listed as dengue symptom"
+
+  - doc_id: DENGUE_WHO
+    section_ref: "Dengue — Prevention and Control"
+    substring: "mosquito"
+    description: "mosquito control in dengue prevention"
+
+  - doc_id: MALARIA_WHO
+    section_ref: "Malaria — Symptoms"
+    substring: "chills"
+    description: "chills listed as malaria symptom"
+
+  - doc_id: MALARIA_WHO
+    section_ref: "Malaria — Treatment"
+    substring: "artemisinin"
+    description: "artemisinin listed as malaria treatment"
+
+  - doc_id: MENTAL_HEALTH_WHO
+    section_ref: "Mental Health — Overview"
+    substring: "anxiety"
+    description: "anxiety mentioned in mental health overview"
+
+  - doc_id: MENTAL_HEALTH_WHO
+    section_ref: "Mental Health — Types of Mental Disorders"
+    substring: "depression"
+    description: "depression listed as disorder type"
+
+  - doc_id: ANAEMIA_WHO
+    section_ref: "Anaemia — Overview"
+    substring: "haemoglobin"
+    description: "haemoglobin in anaemia overview"
+
+  - doc_id: ANAEMIA_WHO
+    section_ref: "Anaemia — Causes"
+    substring: "iron"
+    description: "iron deficiency as anaemia cause"
+
+  - doc_id: COVID19_WHO
+    section_ref: "COVID-19 — Symptoms"
+    substring: "fever"
+    description: "fever listed as COVID symptom"
+
+  - doc_id: COVID19_WHO
+    section_ref: "COVID-19 — Prevention"
+    substring: "vaccination"
+    description: "vaccination in COVID prevention"

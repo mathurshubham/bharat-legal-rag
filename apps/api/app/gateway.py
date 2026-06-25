@@ -1,19 +1,17 @@
-import os
 from typing import Any
 
 import httpx
 
+from .config import settings
+
 _CF_BASE = "https://gateway.ai.cloudflare.com/v1"
 _OPENROUTER_DIRECT = "https://openrouter.ai/api/v1/chat/completions"
-_DEFAULT_ACCOUNT = os.getenv("CF_ACCOUNT_ID", "")
-_DEFAULT_GATEWAY = os.getenv("CF_GATEWAY_ID", "")
 _TIMEOUT = 60.0
 
 
 def _build_url(account_id: str, gateway_id: str) -> str:
     if account_id and gateway_id:
         return f"{_CF_BASE}/{account_id}/{gateway_id}/openrouter/v1/chat/completions"
-    # CF creds absent — hit OpenRouter directly
     return _OPENROUTER_DIRECT
 
 
@@ -28,8 +26,8 @@ async def chat_completion(
     temperature: float = 0.1,
 ) -> dict[str, Any]:
     url = _build_url(
-        account_id or _DEFAULT_ACCOUNT,
-        gateway_id or _DEFAULT_GATEWAY,
+        account_id or settings.cf_account_id,
+        gateway_id or settings.cf_gateway_id,
     )
     payload = {
         "model": model,
@@ -40,8 +38,8 @@ async def chat_completion(
     headers = {
         "Authorization": f"Bearer {openrouter_key}",
         "Content-Type": "application/json",
-        "HTTP-Referer": "https://legal-rag-demo",
-        "X-Title": "Legal RAG Demo",
+        "HTTP-Referer": "https://rag-demos",
+        "X-Title": "RAG Demos",
     }
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
         response = await client.post(url, json=payload, headers=headers)

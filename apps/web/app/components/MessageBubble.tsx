@@ -3,25 +3,14 @@
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import type { ChatMessage } from "@/lib/types"
+import type { DemoConfig } from "@/lib/demoConfig"
 
 interface Props {
   message: ChatMessage
+  config: DemoConfig
   onShowSources: (id: string) => void
   activeSources: string | null
 }
-
-const REFUSAL_MARKERS = [
-  "cannot answer", "i cannot answer", "not in the available",
-  "please consult", "does not contain", "cannot be cited",
-  "not part of", "not indexed", "outside the statutes", "not available in",
-]
-const OLD_LAW_MARKERS = [
-  "repealed statute", "repealed law", "ipc", "crpc",
-  "indian evidence act", "consumer protection act 1986",
-]
-
-const detectRefusal = (t: string) => REFUSAL_MARKERS.some(m => t.toLowerCase().includes(m))
-const detectOldLaw  = (t: string) => OLD_LAW_MARKERS.some(m => t.toLowerCase().includes(m))
 
 function TypingDots() {
   return (
@@ -37,7 +26,12 @@ function TypingDots() {
   )
 }
 
-export function MessageBubble({ message, onShowSources, activeSources }: Props) {
+export function MessageBubble({ message, config, onShowSources, activeSources }: Props) {
+  const detectRefusal = (t: string) =>
+    config.refusalMarkers.some(m => t.toLowerCase().includes(m))
+  const detectGuard = (t: string) =>
+    config.guardMarkers.some(m => t.toLowerCase().includes(m))
+
   /* ── User ── */
   if (message.role === "user") {
     return (
@@ -53,7 +47,7 @@ export function MessageBubble({ message, onShowSources, activeSources }: Props) 
   if (message.isLoading) {
     return (
       <div className="flex items-start gap-3">
-        <div className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-bold shrink-0 mt-0.5">⚖</div>
+        <div className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-bold shrink-0 mt-0.5">{config.icon}</div>
         <div className="bg-white border border-slate-200 rounded-2xl rounded-tl-md px-4 py-3 shadow-sm">
           <TypingDots />
         </div>
@@ -74,52 +68,47 @@ export function MessageBubble({ message, onShowSources, activeSources }: Props) 
   }
 
   /* ── Assistant answer ── */
-  const resp    = message.response
-  const text    = message.content
+  const resp = message.response
+  const text = message.content
   const isRefusal = detectRefusal(text)
-  const hasOldLaw = !isRefusal && detectOldLaw(text)
+  const hasGuard  = !isRefusal && detectGuard(text)
   const sourcesOpen = activeSources === message.id
 
   return (
     <div className="flex items-start gap-3">
-      {/* Avatar */}
       <div className="w-7 h-7 rounded-full bg-indigo-600 flex items-center justify-center text-white text-[11px] font-bold shrink-0 mt-0.5">
-        ⚖
+        {config.icon}
       </div>
 
       <div className="flex-1 min-w-0 space-y-2">
-        {/* Banners */}
         {isRefusal && (
           <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-2 text-xs text-amber-800">
             <svg className="w-3.5 h-3.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
             </svg>
-            <span className="font-medium">Insufficient context — this question falls outside the indexed corpus.</span>
+            <span className="font-medium">{config.refusalBanner}</span>
           </div>
         )}
-        {hasOldLaw && (
+        {hasGuard && (
           <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-xl px-3.5 py-2 text-xs text-orange-800">
             <svg className="w-3.5 h-3.5 shrink-0" fill="currentColor" viewBox="0 0 20 20">
               <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clipRule="evenodd" />
             </svg>
-            <span className="font-medium">References repealed law — current statute shown below.</span>
+            <span className="font-medium">{config.guardBanner}</span>
           </div>
         )}
 
-        {/* Answer card */}
         <div className="bg-white border border-slate-200 rounded-2xl rounded-tl-md shadow-sm overflow-hidden">
           <div className="px-5 py-4">
-            <div className="prose-legal text-[0.9rem] text-slate-900">
+            <div className="prose-answer text-[0.9rem] text-slate-900">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {text}
               </ReactMarkdown>
             </div>
           </div>
 
-          {/* Citations + footer */}
           {resp && (
             <div className="px-5 pb-4 space-y-3">
-              {/* Citation chips */}
               {resp.citations.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 pt-1">
                   {resp.citations.map((c, i) => (
@@ -134,7 +123,6 @@ export function MessageBubble({ message, onShowSources, activeSources }: Props) 
                 </div>
               )}
 
-              {/* Footer row */}
               <div className="flex items-center justify-between pt-1 border-t border-slate-100">
                 <div className="flex items-center gap-3 text-[11px] text-slate-400">
                   <span className="flex items-center gap-1">

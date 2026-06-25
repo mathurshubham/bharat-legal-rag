@@ -1,0 +1,49 @@
+demo_id: insurance
+title: "Beema — Insurance Policy Q&A"
+description: "Grounded answers from IRDAI standard policy wordings"
+
+doc_titles:
+  AROGYA_SANJEEVANI_IRDAI: "Arogya Sanjeevani Standard Health Policy (IRDAI 2020)"
+  SARAL_JEEVAN_BIMA: "Saral Jeevan Bima Standard Term Life Policy (IRDAI 2020)"
+  SARAL_SURAKSHA_BIMA: "Saral Suraksha Bima Standard Personal Accident Policy (IRDAI 2021)"
+
+doc_shorts:
+  AROGYA_SANJEEVANI_IRDAI: "Arogya"
+  SARAL_JEEVAN_BIMA: "SJB"
+  SARAL_SURAKSHA_BIMA: "SSB"
+
+section:
+  patterns:
+    - "^(?:Clause|Section|Article)\\s+(\\d+[A-Z]?\\.?\\d*)\\b"
+    - "^(\\d+\\.\\d+(?:\\.\\d+)?)\\s+[A-Z]"
+    - "^(\\d+)\\.\\s+[A-Z]"
+    - "^(Annexure\\s+[A-Z0-9]+|Schedule\\s+[IVXLC0-9]+)\\b"
+  format_default: "{short} cl.{n}"
+  format_overrides: {}
+  normalizer_overrides: {}
+
+guard:
+  corpus_doc_id: null
+  ui_markers:
+    - "not covered"
+    - "exclusion"
+    - "excluded"
+    - "does not cover"
+    - "not payable"
+    - "waiting period"
+  ui_banner: "This may involve an exclusion or waiting period — verify against the cited clause."
+
+refusal:
+  ui_markers:
+    - "cannot answer"
+    - "not addressed"
+    - "not in the indexed"
+    - "not covered in the indexed"
+    - "outside the policies"
+    - "please refer to your actual policy"
+    - "not available in"
+  ui_banner: "This question is not addressed in the indexed policy wordings."
+
+prompts:
+  system_default_version: v1
+  hyde_path: prompts/hyde.txt

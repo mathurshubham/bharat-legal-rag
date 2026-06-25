@@ -1,6 +1,7 @@
 export interface RetrievedChunk {
   id: number
   doc_id: string
+  doc_title?: string   // server-provided; use as display label when present
   section_ref: string
   content: string
   score: number

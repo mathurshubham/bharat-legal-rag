@@ -1,0 +1,56 @@
+demo_id: health
+title: "Vaidya — Health Information"
+description: "General health information from WHO fact sheets. Not medical advice."
+
+doc_titles:
+  DIABETES_WHO: "WHO Fact Sheet — Diabetes"
+  HYPERTENSION_WHO: "WHO Fact Sheet — Hypertension"
+  TUBERCULOSIS_WHO: "WHO Fact Sheet — Tuberculosis"
+  DENGUE_WHO: "WHO Fact Sheet — Dengue and Severe Dengue"
+  MALARIA_WHO: "WHO Fact Sheet — Malaria"
+  MENTAL_HEALTH_WHO: "WHO Fact Sheet — Mental Disorders"
+  ANAEMIA_WHO: "WHO Fact Sheet — Anaemia"
+  COVID19_WHO: "WHO Fact Sheet — COVID-19"
+
+doc_shorts:
+  DIABETES_WHO: "Diabetes"
+  HYPERTENSION_WHO: "Hypertension"
+  TUBERCULOSIS_WHO: "Tuberculosis"
+  DENGUE_WHO: "Dengue"
+  MALARIA_WHO: "Malaria"
+  MENTAL_HEALTH_WHO: "Mental Health"
+  ANAEMIA_WHO: "Anaemia"
+  COVID19_WHO: "COVID-19"
+
+section:
+  patterns:
+    - "^(Key Facts|Overview|Symptoms|Signs and Symptoms|Causes|Risk Factors|Diagnosis|Treatment|Prevention|Prevention and Control|Diagnostics and Treatment|Transmission|Complications|Types of Mental Disorders|Global Burden|WHO Response|TB and HIV|Gestational Diabetes|Type 1 Diabetes|Type 2 Diabetes|Impaired Glucose Tolerance and Impaired Fasting Glycaemia|Diagnosis and Treatment|Scope of the Problem|Self-Care|Global Impact|Treatment and Prevention)$"
+    - "^(Key facts|Overview|Symptoms|Treatment|Prevention|Causes|Diagnosis)$"
+  format_default: "{short} — {n}"
+  format_overrides: {}
+  normalizer_overrides: {}
+
+guard:
+  corpus_doc_id: null
+  ui_markers:
+    - "emergency"
+    - "call 112"
+    - "call 911"
+    - "seek immediate"
+    - "immediate medical"
+  ui_banner: "If this is an emergency, call 112 (India) or your local emergency number immediately."
+
+refusal:
+  ui_markers:
+    - "cannot answer"
+    - "not covered in the indexed"
+    - "not in the indexed"
+    - "not available in"
+    - "this is not medical advice and i cannot"
+    - "outside the scope"
+    - "please consult"
+  ui_banner: "This is not covered in the indexed health information. Please consult a qualified healthcare professional."
+
+prompts:
+  system_default_version: v1
+  hyde_path: prompts/hyde.txt

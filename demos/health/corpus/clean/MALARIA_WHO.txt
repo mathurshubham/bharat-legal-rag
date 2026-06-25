@@ -1,0 +1,33 @@
+MALARIA — WHO FACT SHEET
+
+Key Facts
+
+Globally in 2024, there were approximately 282 million malaria cases and 610,000 deaths across 80 countries. The WHO African Region bears a disproportionate burden, accounting for 95% of cases (265 million) and 95% of deaths (579,000). Children under five represented about 75% of all regional malaria deaths.
+
+Overview
+
+Malaria is a life-threatening disease transmitted to humans by certain mosquito species, primarily found in tropical regions. The infection stems from parasites and does not spread between people directly.
+
+Symptoms range from mild to severe. Mild presentations include fever, chills and headache, while serious cases involve fatigue, confusion, seizures, and breathing difficulties. High-risk groups include infants, young children, pregnant women, travelers, and immunocompromised individuals.
+
+Transmission occurs mainly through infected female Anopheles mosquitoes, though blood transfusions and contaminated needles can also spread infection. Five Plasmodium species cause human malaria; P. falciparum and P. vivax pose the greatest threat.
+
+Symptoms
+
+The most common early signs are fever, headache, and chills, typically appearing 10-15 days after an infected mosquito bite. Some individuals experience mild symptoms, particularly those with previous infections.
+
+Severe manifestations include extreme fatigue, impaired consciousness, multiple seizures, breathing difficulty, dark or bloody urine, jaundice, and abnormal bleeding. Early treatment prevents progression to severe disease.
+
+Prevention
+
+Malaria prevention involves avoiding mosquito bites and taking preventive medications. Protective measures include using mosquito nets, applying insect repellents containing DEET or Icaridin after dusk, wearing protective clothing, and installing window screens.
+
+Vector control through insecticide-treated nets and indoor residual spraying remains vital. Chemoprophylaxis should be discussed with healthcare providers before traveling to endemic areas. Two WHO-recommended vaccines (RTS,S/AS01 and R21/Matrix-M) are being rolled out across Africa.
+
+Treatment
+
+Early diagnosis and treatment reduce disease burden and transmission. WHO recommends confirming suspected cases through parasite-based diagnostic testing via microscopy or rapid diagnostic tests.
+
+Antimalarial medicines are selected based on parasite type, drug resistance patterns, patient age/weight, and pregnancy status. Artemisinin-based combination therapies represent the most effective treatment for P. falciparum malaria. Chloroquine treats P. vivax only where drug sensitivity remains. Primaquine prevents relapses from P. vivax and P. ovale.
+
+Source: World Health Organization Fact Sheet on Malaria. https://www.who.int/news-room/fact-sheets/detail/malaria

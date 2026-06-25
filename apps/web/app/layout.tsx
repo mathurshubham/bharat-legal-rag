@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Indian Legal RAG",
-  description: "Grounded legal research assistant over Indian statutes",
+  title: "RAG Demos",
+  description: "Grounded question-answering over curated corpora",
 };
 
 export default function RootLayout({

@@ -1,17 +1,28 @@
-import os
+"""
+Query condenser — single canonical prompt, not per-demo.
+The condenser is domain-blind by design: it rewrites a follow-up using only
+what is present in the prior turns, never injecting domain knowledge.
+"""
+from pathlib import Path
 
+from .config import settings
 from .gateway import chat_completion
 
-_CONDENSE_MODEL = os.getenv("HYDE_MODEL", "openai/gpt-4.1-mini")
+_PROMPTS_DIR = Path(__file__).parent / "prompts"
+_CONDENSE_MODEL = settings.hyde_model  # fast/cheap model slot reused for condensing
 
-_SYSTEM = (
-    "You rewrite a follow-up question into a standalone search query. "
-    "Output ONLY the rewritten query — no explanation, no preamble. "
-    "Resolve pronoun references and implicit context into explicit terms. "
-    "Do NOT inject legal substance or facts from prior turns — "
-    "if the follow-up asks about something unrelated to prior legal context, "
-    "rewrite it faithfully as-is (the retrieval system will handle relevance)."
-)
+
+def _load_condense_system() -> str:
+    path = _PROMPTS_DIR / "condense.txt"
+    if path.exists():
+        return path.read_text().strip()
+    # Inline fallback so the service starts even if file is missing
+    return (
+        "Rewrite the follow-up into a standalone question using only what is present "
+        "in the prior turns. Resolve pronouns and implicit references into explicit terms. "
+        "Do not add facts not present in the conversation. "
+        "Output only the rewritten query — no explanation, no preamble."
+    )
 
 
 def _format_history(history: list[dict]) -> str:
@@ -33,12 +44,13 @@ async def condense_query(
     if not history:
         return query
 
+    system = _load_condense_system()
     context = _format_history(history)
     user_msg = f"Conversation so far:\n{context}\n\nFollow-up: {query}\n\nStandalone query:"
 
     result = await chat_completion(
         messages=[
-            {"role": "system", "content": _SYSTEM},
+            {"role": "system", "content": system},
             {"role": "user", "content": user_msg},
         ],
         model=_CONDENSE_MODEL,

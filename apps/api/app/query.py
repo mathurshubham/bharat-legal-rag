@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import time
 import uuid
 from pathlib import Path
@@ -10,21 +9,22 @@ from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
 from .condense import condense_query
+from .config import settings
 from .gateway import chat_completion
 from .rerank import rerank
 from .retrieval import retrieve
 
 router = APIRouter()
 
-_PROMPTS_DIR = Path(__file__).parent / "prompts"
-_GEN_MODEL = os.getenv("GEN_MODEL", "anthropic/claude-sonnet-4-5")
-_EMBED_MODEL = os.getenv("EMBED_MODEL", "Qwen/Qwen3-Embedding-0.6B")
+REPO_ROOT = Path(__file__).parent.parent.parent.parent
+_GEN_MODEL = settings.gen_model
+_EMBED_MODEL = settings.embed_model
 
 
-def _load_system_prompt(version: str) -> str:
-    path = _PROMPTS_DIR / f"system_{version}.md"
+def _load_system_prompt(demo_id: str, version: str) -> str:
+    path = REPO_ROOT / "demos" / demo_id / "prompts" / f"system_{version}.md"
     if not path.exists():
-        raise ValueError(f"System prompt version {version!r} not found")
+        raise ValueError(f"System prompt not found for demo={demo_id!r} version={version!r} at {path}")
     return path.read_text()
 
 
@@ -68,8 +68,9 @@ class QueryResponse(BaseModel):
     trace_id: str
 
 
-@router.post("/api/query", response_model=QueryResponse)
+@router.post("/api/{demo}/query", response_model=QueryResponse)
 async def query(
+    demo: str,
     req: QueryRequest,
     mode: str = "hybrid",
     top_k: int = 20,
@@ -84,6 +85,8 @@ async def query(
 ):
     if not x_openrouter_key:
         raise HTTPException(status_code=401, detail="X-OpenRouter-Key header required")
+
+    demo_id = demo.lower()
 
     trace_id = str(uuid.uuid4())
     t_start = time.perf_counter()
@@ -100,7 +103,10 @@ async def query(
     # retrieve
     t0 = time.perf_counter()
     chunks = await retrieve(
-        effective_q, mode=mode, top_k=top_k,
+        effective_q,
+        demo_id=demo_id,
+        mode=mode,
+        top_k=top_k,
         openrouter_key=x_openrouter_key,
         hyde_model=None,
         cf_account_id=cf_account_id,
@@ -108,7 +114,7 @@ async def query(
     )
     retrieve_ms = int((time.perf_counter() - t0) * 1000)
 
-    # rerank → top_n via OpenRouter native rerank endpoint (same key as generation)
+    # rerank → top_n
     t0 = time.perf_counter()
     rerank_ms = 0
     if do_rerank and chunks:
@@ -124,7 +130,7 @@ async def query(
     # generate
     t0 = time.perf_counter()
     model = gen_model or _GEN_MODEL
-    system_tmpl = _load_system_prompt(prompt_version)
+    system_tmpl = _load_system_prompt(demo_id, prompt_version)
     context_str = _build_context(chunks)
     system_msg = system_tmpl.replace("{context}", context_str)
 
@@ -149,6 +155,7 @@ async def query(
             {
                 "id": c["id"],
                 "doc_id": c["doc_id"],
+                "doc_title": c["doc_title"],   # additive — server-authoritative label
                 "section_ref": c["section_ref"],
                 "content": c["content"][:400],
                 "score": c.get("score", 0.0),
@@ -158,12 +165,13 @@ async def query(
         ],
         citations=_assemble_citations(chunks),
         config={
+            "demo": demo_id,
             "mode": mode,
             "top_k": top_k,
             "top_n": top_n,
             "rerank": do_rerank,
             "gen_model": model,
-            "reranker_model": reranker_model or os.getenv("RERANKER_MODEL", "BAAI/bge-reranker-v2-m3"),
+            "reranker_model": reranker_model or settings.reranker_model,
             "embed_model": _EMBED_MODEL,
             "prompt_version": prompt_version,
         },

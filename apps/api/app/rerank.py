@@ -7,19 +7,18 @@ Also routes through Cloudflare AI Gateway when CF creds are present.
 Default model: nvidia/llama-nemotron-rerank-vl-1b-v2:free (free tier)
 Override: RERANKER_MODEL env var
 """
-import os
-
 import httpx
+
+from .config import settings
 
 _CF_BASE = "https://gateway.ai.cloudflare.com/v1"
 _OR_DIRECT = "https://openrouter.ai/api/v1/rerank"
-_DEFAULT_MODEL = os.getenv("RERANKER_MODEL", "nvidia/llama-nemotron-rerank-vl-1b-v2:free")
+_DEFAULT_MODEL = settings.reranker_model
 _TIMEOUT = 30.0
 
 
 def _rerank_url(account_id: str, gateway_id: str) -> str:
     if account_id and gateway_id:
-        # CF AI Gateway → OpenRouter rerank path
         return f"{_CF_BASE}/{account_id}/{gateway_id}/openrouter/api/v1/rerank"
     return _OR_DIRECT
 
@@ -38,8 +37,8 @@ async def rerank(
         return chunks
 
     url = _rerank_url(
-        account_id or os.getenv("CF_ACCOUNT_ID", ""),
-        gateway_id or os.getenv("CF_GATEWAY_ID", ""),
+        account_id or settings.cf_account_id,
+        gateway_id or settings.cf_gateway_id,
     )
     docs = [c["content"] for c in chunks]
 
@@ -49,8 +48,8 @@ async def rerank(
             headers={
                 "Authorization": f"Bearer {openrouter_key}",
                 "Content-Type": "application/json",
-                "HTTP-Referer": "https://legal-rag-demo",
-                "X-Title": "Legal RAG Demo",
+                "HTTP-Referer": "https://rag-demos",
+                "X-Title": "RAG Demos",
             },
             json={
                 "model": model or _DEFAULT_MODEL,

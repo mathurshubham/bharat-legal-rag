@@ -1,0 +1,53 @@
+# AROGYA_SANJEEVANI_IRDAI is a 2020 amendment circular (premium/sum-insured extension),
+# not the full policy wording. Full benefit/exclusion terms are in the base guidelines.
+# Checks here verify the doc is correctly ingested and is about Arogya Sanjeevani health insurance.
+checks:
+  - doc_id: AROGYA_SANJEEVANI_IRDAI
+    section_ref: "*"
+    substring: "sum insured"
+    description: "sum insured mentioned in Arogya amendment circular"
+
+  - doc_id: AROGYA_SANJEEVANI_IRDAI
+    section_ref: "*"
+    substring: "Arogya Sanjeevani"
+    description: "doc is specifically about Arogya Sanjeevani Policy"
+
+  - doc_id: AROGYA_SANJEEVANI_IRDAI
+    section_ref: "*"
+    substring: "premium"
+    description: "premium rates mentioned in Arogya circular"
+
+  - doc_id: SARAL_JEEVAN_BIMA
+    section_ref: "*"
+    substring: "death"
+    description: "death benefit in Saral Jeevan Bima"
+
+  - doc_id: SARAL_JEEVAN_BIMA
+    section_ref: "*"
+    substring: "nominee"
+    description: "nominee in Saral Jeevan Bima"
+
+  - doc_id: SARAL_JEEVAN_BIMA
+    section_ref: "*"
+    substring: "premium"
+    description: "premium in Saral Jeevan Bima"
+
+  - doc_id: SARAL_SURAKSHA_BIMA
+    section_ref: "*"
+    substring: "accidental"
+    description: "accidental cover in Saral Suraksha Bima"
+
+  - doc_id: SARAL_SURAKSHA_BIMA
+    section_ref: "*"
+    substring: "disability"
+    description: "disability benefit in Saral Suraksha Bima"
+
+  - doc_id: SARAL_SURAKSHA_BIMA
+    section_ref: "*"
+    substring: "exclusion"
+    description: "exclusion clause in Saral Suraksha Bima"
+
+  - doc_id: SARAL_SURAKSHA_BIMA
+    section_ref: "*"
+    substring: "personal accident"
+    description: "personal accident policy confirmed"

@@ -13,18 +13,18 @@ body {
 }
 
 /* Prose styles for markdown answers */
-.prose-legal {
+.prose-answer {
   line-height: 1.75;
   color: #0f172a;
 }
 
-.prose-legal * {
+.prose-answer * {
   color: inherit;
 }
 
-.prose-legal h1,
-.prose-legal h2,
-.prose-legal h3 {
+.prose-answer h1,
+.prose-answer h2,
+.prose-answer h3 {
   font-weight: 600;
   color: #0f172a;
   margin-top: 1.25em;
@@ -32,45 +32,45 @@ body {
   line-height: 1.3;
 }
 
-.prose-legal h1 { font-size: 1.125rem; }
-.prose-legal h2 { font-size: 1rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.25rem; }
-.prose-legal h3 { font-size: 0.9375rem; color: #334155; }
+.prose-answer h1 { font-size: 1.125rem; }
+.prose-answer h2 { font-size: 1rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 0.25rem; }
+.prose-answer h3 { font-size: 0.9375rem; color: #334155; }
 
-.prose-legal p {
+.prose-answer p {
   margin-bottom: 0.875em;
 }
 
-.prose-legal p:last-child {
+.prose-answer p:last-child {
   margin-bottom: 0;
 }
 
-.prose-legal ul,
-.prose-legal ol {
+.prose-answer ul,
+.prose-answer ol {
   margin: 0.75em 0;
   padding-left: 1.5em;
 }
 
-.prose-legal li {
+.prose-answer li {
   margin-bottom: 0.35em;
 }
 
-.prose-legal strong {
+.prose-answer strong {
   font-weight: 600;
   color: #0f172a;
 }
 
-.prose-legal em {
+.prose-answer em {
   color: #475569;
   font-style: italic;
 }
 
-.prose-legal hr {
+.prose-answer hr {
   border: none;
   border-top: 1px solid #e2e8f0;
   margin: 1em 0;
 }
 
-.prose-legal code {
+.prose-answer code {
   background: #f1f5f9;
   border: 1px solid #e2e8f0;
   border-radius: 3px;
@@ -80,7 +80,7 @@ body {
   color: #0f172a;
 }
 
-.prose-legal blockquote {
+.prose-answer blockquote {
   border-left: 3px solid #6366f1;
   padding-left: 1em;
   margin: 0.75em 0;

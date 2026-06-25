@@ -25,8 +25,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-legal}:${POSTGRES_PASSWORD:-legal}@db:5432/${POSTGRES_DB:-legalrag}
     volumes:
       - hf_cache:/root/.cache/huggingface
-      - ./corpus:/app/corpus
-      - ./apps/api/app/prompts:/app/app/prompts
+      - ./demos:/app/demos
     ports:
       - "8000:8000"
     depends_on:

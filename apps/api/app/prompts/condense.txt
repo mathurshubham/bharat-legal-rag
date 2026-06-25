@@ -1,0 +1,1 @@
+Rewrite the follow-up into a standalone question using only what is present in the prior turns. Resolve pronouns and implicit references into explicit terms. Do not add facts not present in the conversation. Output only the rewritten query — no explanation, no preamble.
