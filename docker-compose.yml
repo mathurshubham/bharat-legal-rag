@@ -15,6 +15,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    restart: unless-stopped
 
   api:
     build:
@@ -22,28 +23,31 @@ services:
       dockerfile: Dockerfile
     env_file: .env
     environment:
+      # Override DATABASE_URL so it uses the 'db' service hostname, not localhost
       DATABASE_URL: postgresql://${POSTGRES_USER:-legal}:${POSTGRES_PASSWORD:-legal}@db:5432/${POSTGRES_DB:-legalrag}
     volumes:
+      # Cache HuggingFace models across rebuilds (no-op when OPENROUTER_API_KEY is set)
       - hf_cache:/root/.cache/huggingface
-      - ./corpus:/app/corpus
-      - ./apps/api/app/prompts:/app/app/prompts
     ports:
       - "8000:8000"
     depends_on:
       db:
         condition: service_healthy
+    restart: unless-stopped
 
   web:
     build:
       context: ./apps/web
       dockerfile: Dockerfile
-    env_file: .env
-    environment:
-      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      args:
+        # NEXT_PUBLIC_API_URL is baked into the JS bundle at build time.
+        # Changing this value requires a rebuild: docker compose build web
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
     ports:
       - "3002:3000"
     depends_on:
       - api
+    restart: unless-stopped
 
 volumes:
   db_data:

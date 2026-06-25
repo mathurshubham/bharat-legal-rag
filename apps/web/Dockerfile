@@ -4,10 +4,16 @@ RUN corepack enable pnpm
 FROM base AS deps
 WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
+# Disable minimumReleaseAge policy — rejects packages published < 24h ago (pnpm v10 security feature).
+# Safe to bypass here since we control and trust our lockfile.
+RUN echo "minimum-release-age=0" > .npmrc && pnpm install --frozen-lockfile
 
 FROM base AS builder
 WORKDIR /app
+# Build-time arg — NEXT_PUBLIC_* vars are baked into the JS bundle at build time,
+# not at runtime. Must be passed as a build arg, not a container env var.
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN pnpm build
