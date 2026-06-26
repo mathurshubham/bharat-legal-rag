@@ -133,12 +133,10 @@ Expected counts after restore:
 | LAW_MAPPINGS             | 3     |
 | **Total**                | **4896** |
 
-### 5. Kill any stale API/web processes
+### 5. Stop the API and web services
 
 ```bash
-pkill -f "uvicorn app.main" 2>/dev/null
-pkill -f "standalone/server" 2>/dev/null
-pkill -f "next-server" 2>/dev/null
+sudo systemctl stop bharat-legal-api bharat-legal-web
 sleep 2
 # Confirm ports are free:
 ss -tlnp | grep -E "8000|3002" || echo "ports free"
@@ -169,21 +167,15 @@ Skip if only API code changed.
 ### 8. Start the API
 
 ```bash
-cd ~/Documents/projects/bharat-legal-rag/apps/api
-OPENROUTER_API_KEY=$(grep OPENROUTER_API_KEY ~/Documents/projects/bharat-legal-rag/.env | cut -d= -f2) \
-DATABASE_URL=postgresql://legal:legal@localhost:5435/legalrag \
-nohup .venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 > /tmp/api.log 2>&1 &
-echo "API PID: $!"
-sleep 8 && curl -s http://localhost:8000/api/health
+sudo systemctl start bharat-legal-api
+sleep 10 && curl -s http://localhost:8000/api/health
 # Expected: {"status":"ok"}
 ```
 
 ### 9. Start the web server
 
 ```bash
-cd ~/Documents/projects/bharat-legal-rag/apps/web
-PORT=3002 nohup node .next/standalone/server.js > /tmp/web.log 2>&1 &
-echo "Web PID: $!"
+sudo systemctl start bharat-legal-web
 sleep 5 && curl -s -o /dev/null -w "HTTP %{http_code}\n" http://localhost:3002
 # Expected: HTTP 200
 ```
@@ -205,30 +197,36 @@ free -h
 # DB row count:
 sudo docker exec bharat-legal-rag-db-1 psql -U legal -d legalrag \
   -c "SELECT count(*) FROM chunks;"
-# Expected: 4896
+# Expected: 5574
 ```
 
 ---
 
 ## After a Pi reboot
 
-ParadeDB has `restart: unless-stopped` in docker-compose so it comes back automatically. The API and web do not — restart them manually:
+All three services restart automatically on reboot via their respective init systems:
+
+| Service  | Init system | Unit / config                                                  |
+|----------|-------------|----------------------------------------------------------------|
+| ParadeDB | Docker       | `restart: unless-stopped` in `docker-compose.yml`             |
+| FastAPI  | systemd      | `/etc/systemd/system/bharat-legal-api.service` (enabled)      |
+| Next.js  | systemd      | `/etc/systemd/system/bharat-legal-web.service` (enabled)      |
+
+The API service waits for the DB to be healthy before starting (`ExecStartPre` polls `pg_isready`), so ordering is guaranteed.
+
+To verify after a reboot:
 
 ```bash
-# 1. Wait for DB (it auto-restarts, just poll):
-until sudo docker exec bharat-legal-rag-db-1 pg_isready -U legal -d legalrag 2>/dev/null; do sleep 3; done && echo "DB ready"
+sudo systemctl status bharat-legal-api bharat-legal-web
+curl -s http://localhost:8000/api/health
+curl -s -o /dev/null -w "Web HTTP %{http_code}\n" http://localhost:3002
+```
 
-# 2. Start API:
-cd ~/Documents/projects/bharat-legal-rag/apps/api
-OPENROUTER_API_KEY=$(grep OPENROUTER_API_KEY ~/Documents/projects/bharat-legal-rag/.env | cut -d= -f2) \
-DATABASE_URL=postgresql://legal:legal@localhost:5435/legalrag \
-nohup .venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 > /tmp/api.log 2>&1 &
-sleep 8 && curl -s http://localhost:8000/api/health
+To view logs:
 
-# 3. Start web:
-cd ~/Documents/projects/bharat-legal-rag/apps/web
-PORT=3002 nohup node .next/standalone/server.js > /tmp/web.log 2>&1 &
-sleep 5 && curl -s -o /dev/null -w "HTTP %{http_code}\n" http://localhost:3002
+```bash
+sudo journalctl -u bharat-legal-api -f
+sudo journalctl -u bharat-legal-web -f
 ```
 
 ---
@@ -279,12 +277,12 @@ The API's allowed origins are in `apps/api/app/main.py`. If you add a new web ho
 
 ### API log
 ```bash
-tail -f /tmp/api.log
+sudo journalctl -u bharat-legal-api -f
 ```
 
 ### Web log
 ```bash
-tail -f /tmp/web.log
+sudo journalctl -u bharat-legal-web -f
 ```
 
 ### Port already in use
