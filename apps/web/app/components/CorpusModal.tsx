@@ -23,7 +23,7 @@ export function CorpusModal({ demo, config, onClose }: Props) {
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
           <div>
@@ -55,17 +55,19 @@ export function CorpusModal({ demo, config, onClose }: Props) {
                 return (
                   <div
                     key={doc.doc_id}
-                    className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 hover:bg-white hover:border-slate-200 transition-all"
+                    className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 hover:bg-white hover:border-slate-200 transition-all"
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <span className={`shrink-0 text-[10px] px-2 py-0.5 rounded-full border font-medium ${colorClass}`}>
-                        {doc.doc_id.replace(/_/g, " ")}
-                      </span>
-                      <span className="text-sm text-slate-700 truncate">{doc.doc_title}</span>
-                    </div>
-                    <div className="shrink-0 flex items-center gap-3 ml-3 text-[11px] text-slate-400 tabular-nums">
-                      <span title="Sections">{doc.section_count.toLocaleString()} §</span>
-                      <span title="Chunks" className="text-slate-500 font-medium">{doc.chunk_count.toLocaleString()} chunks</span>
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-slate-800 leading-snug">{doc.doc_title}</p>
+                        <span className={`inline-block mt-1.5 text-[10px] px-2 py-0.5 rounded-full border font-medium ${colorClass}`}>
+                          {doc.doc_id.replace(/_/g, " ")}
+                        </span>
+                      </div>
+                      <div className="shrink-0 flex flex-col items-end gap-1 text-[11px] tabular-nums pt-0.5">
+                        <span className="text-slate-500 font-semibold">{doc.chunk_count.toLocaleString()} chunks</span>
+                        <span className="text-slate-400">{doc.section_count.toLocaleString()} sections</span>
+                      </div>
                     </div>
                   </div>
                 )
