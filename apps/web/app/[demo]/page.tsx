@@ -50,7 +50,8 @@ export default function DemoPage({ params }: { params: Promise<{ demo: string }>
   const [input, setInput]                 = useState("")
   const [loading, setLoading]             = useState(false)
   const [showSettings, setShowSettings]   = useState(false)
-  const [settings, setSettings]           = useState<Settings>(loadSettings)
+  // Initialize empty to match SSR; load from localStorage after mount to avoid hydration mismatch
+  const [settings, setSettings]           = useState<Settings>(_EMPTY)
   const [activeSources, setActiveSources] = useState<string | null>(null)
   const [mode, setMode]                   = useState<RetrievalMode>("hybrid")
   const [showTryEval, setShowTryEval]     = useState(false)
@@ -58,6 +59,10 @@ export default function DemoPage({ params }: { params: Promise<{ demo: string }>
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef  = useRef<HTMLTextAreaElement>(null)
   const abortRef  = useRef<AbortController | null>(null)
+
+  useEffect(() => {
+    setSettings(loadSettings())
+  }, [])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
@@ -187,15 +192,15 @@ export default function DemoPage({ params }: { params: Promise<{ demo: string }>
           <main className="flex-1 overflow-y-auto px-4 md:px-6 py-6">
             {empty ? (
               <div className="max-w-2xl mx-auto">
-                <div className="text-center mb-10 pt-8">
+                <div className="text-center mb-8 pt-8">
                   <div
                     className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 shadow-lg"
                     style={{ backgroundColor: primaryHex(config.primaryColor) }}
                   >
                     {config.icon}
                   </div>
-                  <h2 className="text-xl font-semibold text-slate-800 mb-2">{config.shortTitle}</h2>
-                  <p className="text-sm text-slate-500 max-w-md mx-auto">{config.subtitle}</p>
+                  <h2 className="text-xl font-semibold text-slate-800 mb-1.5">{config.shortTitle}</h2>
+                  <p className="text-[11px] text-slate-400">{config.subtitle}</p>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -212,13 +217,20 @@ export default function DemoPage({ params }: { params: Promise<{ demo: string }>
                 </div>
 
                 {config.about && (
-                  <div className="mt-6 rounded-2xl border border-slate-200 bg-white px-5 py-4">
-                    <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">About this corpus</p>
-                    <p className="text-sm text-slate-600 leading-relaxed">{config.about}</p>
+                  <div
+                    className="mt-6 pl-4 py-3 pr-4 rounded-r-xl"
+                    style={{
+                      borderLeft: `3px solid ${primaryHex(config.primaryColor)}`,
+                      background: `${primaryHex(config.primaryColor)}0d`,
+                    }}
+                  >
+                    <p className="text-[11px] font-semibold mb-1" style={{ color: primaryHex(config.primaryColor) }}>
+                      What this covers
+                    </p>
+                    <p className="text-[13px] text-slate-600 leading-relaxed">{config.about}</p>
                   </div>
                 )}
 
-                <p className="text-center text-[11px] text-slate-400 mt-6">{config.subtitle}</p>
               </div>
             ) : (
               <div className="max-w-2xl mx-auto space-y-6">
