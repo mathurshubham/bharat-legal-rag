@@ -1,7 +1,7 @@
 # Bharat Legal RAG — Raspberry Pi Deployment Guide
 
 Target machine: Raspberry Pi 4 (4 GB RAM), running Debian aarch64.  
-Hostnames: `indialegal-rag.shubhammathur.in` (web) · `indialegal-rag-api.shubhammathur.in` (API)
+Hostnames: `rag.shubhammathur.in` (web) · `rag-api.shubhammathur.in` (API)
 
 ---
 
@@ -63,8 +63,8 @@ The `.env` file must exist at the repo root with these values (do NOT commit it 
 ```
 OPENROUTER_API_KEY=sk-or-v1-...        # required — prevents 1.2 GB local model download
 DATABASE_URL=postgresql://legal:legal@localhost:5435/legalrag
-NEXT_PUBLIC_API_URL=https://indialegal-rag-api.shubhammathur.in
-CORS_ORIGINS=http://localhost:3002,https://indialegal-rag.shubhammathur.in
+NEXT_PUBLIC_API_URL=https://rag-api.shubhammathur.in
+CORS_ORIGINS=http://localhost:3002,https://rag.shubhammathur.in
 
 POSTGRES_USER=legal
 POSTGRES_PASSWORD=legal
@@ -88,7 +88,7 @@ Without this symlink `CORS_ORIGINS` is never loaded and the browser is blocked f
 There must also be `apps/web/.env.local` with:
 
 ```
-NEXT_PUBLIC_API_URL=https://indialegal-rag-api.shubhammathur.in
+NEXT_PUBLIC_API_URL=https://rag-api.shubhammathur.in
 ```
 
 This is needed because Next.js only reads `.env` from its own directory (`apps/web/`), not the repo root. `NEXT_PUBLIC_*` vars are baked into the JS bundle at build time — if this file is missing, the browser will try to reach `localhost:8000` (its own machine) instead of the API tunnel.
@@ -198,8 +198,8 @@ curl -s http://localhost:8000/api/health
 curl -s -o /dev/null -w "Web HTTP %{http_code}\n" http://localhost:3002
 
 # Tunnel health checks:
-curl -s https://indialegal-rag-api.shubhammathur.in/api/health
-curl -s -o /dev/null -w "Tunnel web HTTP %{http_code}\n" https://indialegal-rag.shubhammathur.in
+curl -s https://rag-api.shubhammathur.in/api/health
+curl -s -o /dev/null -w "Tunnel web HTTP %{http_code}\n" https://rag.shubhammathur.in
 
 # Memory (should have >500 MB available):
 free -h
@@ -276,7 +276,7 @@ grep -o 'indialegal-rag-api[^"]*\|localhost:8000' \
 If it shows `localhost:8000`, the `.env.local` was missing when `pnpm build` ran. Fix:
 
 ```bash
-echo "NEXT_PUBLIC_API_URL=https://indialegal-rag-api.shubhammathur.in" > apps/web/.env.local
+echo "NEXT_PUBLIC_API_URL=https://rag-api.shubhammathur.in" > apps/web/.env.local
 cd apps/web && pnpm build
 cp -r .next/static .next/standalone/.next/static
 # Restart the web server (step 9 above)
