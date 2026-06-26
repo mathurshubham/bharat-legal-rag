@@ -58,6 +58,16 @@ refusal:
     - "not available in"
   ui_banner: "Insufficient context — this question falls outside the indexed corpus."
 
+doc_visibility:
+  BNS_2023: public
+  BNSS_2023: public
+  BSA_2023: public
+  CONTRACT_ACT_1872: public
+  CONSUMER_PROTECTION_2019: public
+  DPDP_2023: public
+  CONSTITUTION: public
+  LAW_MAPPINGS: public
+
 prompts:
   system_default_version: v1
   hyde_path: prompts/hyde.txt

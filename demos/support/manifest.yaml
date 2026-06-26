@@ -1,0 +1,141 @@
+demo_id: support
+title: "Acme Tasks — Customer Support AI"
+description: "Grounded answers from Acme Tasks help center, internal policies, and release notes"
+
+doc_titles:
+  # ACME_HELP — public help-center articles
+  BILLING_REFUNDS_V2: "Refund Policy (v2, 2024)"
+  BILLING_REFUNDS_V3: "Refund Policy (v3, 2026)"
+  SUBSCRIPTION_CHANGES: "Changing Your Subscription"
+  PLANS_AND_PRICING: "Plans & Pricing"
+  SSO_SETUP: "SSO Setup Guide"
+  API_RATE_LIMITS: "API Rate Limits"
+  DATA_EXPORT: "Exporting Your Data"
+  SLA_UPTIME: "Service Level Agreement"
+  ENTERPRISE_SLA_ADDENDUM: "Enterprise SLA Addendum"
+  SECURITY_COMPLIANCE: "Security & Compliance Overview"
+  ACCOUNT_ADMIN: "Account Administration"
+  NOTIFICATIONS: "Notifications & Email"
+  MOBILE_APP: "Mobile App Guide"
+  INTEGRATIONS_OVERVIEW: "Integrations Overview"
+  TWO_FACTOR_AUTH: "Two-Factor Authentication"
+  PASSWORD_RESET: "Resetting Your Password"
+  PROJECT_TEMPLATES: "Project Templates"
+  KEYBOARD_SHORTCUTS: "Keyboard Shortcuts"
+
+  # ACME_RELEASE_NOTES — public versioned ship log
+  RELEASE_V4_0: "Release Notes v4.0 (Nov 2025)"
+  RELEASE_V4_1: "Release Notes v4.1 (Feb 2026)"
+  RELEASE_V4_2: "Release Notes v4.2 (May 2026)"
+
+  # ACME_POLICIES — internal-only agent runbooks
+  REFUND_POLICY_INTERNAL_V3: "Internal Refund Discretion Policy"
+  ESCALATION_MATRIX: "Support Escalation Matrix"
+  PII_HANDLING: "PII Disclosure Guidelines"
+  TONE_GUIDELINES_INTERNAL: "Internal Tone & De-escalation Guide"
+
+  # COMPETITORS — confidential battlecards
+  COMPETITOR_X_BATTLECARD: "CompetitorX Battlecard"
+  COMPETITOR_Y_BATTLECARD: "CompetitorY Battlecard"
+  ROADMAP_Q4_2026: "Roadmap Q4 2026 (Confidential)"
+
+doc_shorts:
+  BILLING_REFUNDS_V2: "Refunds v2"
+  BILLING_REFUNDS_V3: "Refunds"
+  SUBSCRIPTION_CHANGES: "Subscriptions"
+  PLANS_AND_PRICING: "Pricing"
+  SSO_SETUP: "SSO"
+  API_RATE_LIMITS: "API"
+  DATA_EXPORT: "Data Export"
+  SLA_UPTIME: "SLA"
+  ENTERPRISE_SLA_ADDENDUM: "Enterprise SLA"
+  SECURITY_COMPLIANCE: "Security"
+  ACCOUNT_ADMIN: "Admin"
+  NOTIFICATIONS: "Notifications"
+  MOBILE_APP: "Mobile"
+  INTEGRATIONS_OVERVIEW: "Integrations"
+  TWO_FACTOR_AUTH: "2FA"
+  PASSWORD_RESET: "Password"
+  PROJECT_TEMPLATES: "Templates"
+  KEYBOARD_SHORTCUTS: "Shortcuts"
+  RELEASE_V4_0: "v4.0"
+  RELEASE_V4_1: "v4.1"
+  RELEASE_V4_2: "v4.2"
+  REFUND_POLICY_INTERNAL_V3: "Refund Discretion"
+  ESCALATION_MATRIX: "Escalation"
+  PII_HANDLING: "PII"
+  TONE_GUIDELINES_INTERNAL: "Tone"
+  COMPETITOR_X_BATTLECARD: "vs CompetitorX"
+  COMPETITOR_Y_BATTLECARD: "vs CompetitorY"
+  ROADMAP_Q4_2026: "Roadmap Q4"
+
+section:
+  patterns:
+    - "^##\\s+(.+)$"
+    - "^###\\s+(.+)$"
+    - "^(\\d+\\.\\d+(?:\\.\\d+)?)\\s+[A-Z]"
+  format_default: "{short} § {n}"
+  format_overrides: {}
+  normalizer_overrides: {}
+
+guard:
+  corpus_doc_id: null
+  ui_markers:
+    - "let me connect you"
+    - "human agent"
+    - "escalat"
+    - "billing team"
+    - "legal team"
+  ui_banner: "Conversation routed to a human agent."
+
+refusal:
+  ui_markers:
+    - "cannot share"
+    - "not covered in our help center"
+    - "outside what i can help with"
+    - "i don't have info"
+    - "not available in"
+    - "confidential"
+  ui_banner: "Outside the support knowledge base — routed to a human agent."
+
+doc_visibility:
+  # public — surfaces to customers by default
+  BILLING_REFUNDS_V2: public
+  BILLING_REFUNDS_V3: public
+  SUBSCRIPTION_CHANGES: public
+  PLANS_AND_PRICING: public
+  SSO_SETUP: public
+  API_RATE_LIMITS: public
+  DATA_EXPORT: public
+  SLA_UPTIME: public
+  ENTERPRISE_SLA_ADDENDUM: public
+  SECURITY_COMPLIANCE: public
+  ACCOUNT_ADMIN: public
+  NOTIFICATIONS: public
+  MOBILE_APP: public
+  INTEGRATIONS_OVERVIEW: public
+  TWO_FACTOR_AUTH: public
+  PASSWORD_RESET: public
+  PROJECT_TEMPLATES: public
+  KEYBOARD_SHORTCUTS: public
+  RELEASE_V4_0: public
+  RELEASE_V4_1: public
+  RELEASE_V4_2: public
+  # internal — agent runbooks; should never reach customer-facing answers
+  REFUND_POLICY_INTERNAL_V3: internal
+  ESCALATION_MATRIX: internal
+  PII_HANDLING: internal
+  TONE_GUIDELINES_INTERNAL: internal
+  # confidential — battlecards & roadmap; leak = high-severity failure
+  COMPETITOR_X_BATTLECARD: confidential
+  COMPETITOR_Y_BATTLECARD: confidential
+  ROADMAP_Q4_2026: confidential
+
+freshness:
+  effective_date_field: effective_date
+  superseded_field: superseded_by
+  prefer: latest
+
+prompts:
+  system_default_version: v1
+  hyde_path: prompts/hyde.txt

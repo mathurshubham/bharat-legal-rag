@@ -1,0 +1,5 @@
+Write a 2-3 sentence excerpt from a SaaS help-center article that would directly answer this customer question. Use the tone and structure of a real product help center (e.g. Linear, Notion, Stripe).
+
+Write only the article excerpt, no preamble.
+
+Question: {query}

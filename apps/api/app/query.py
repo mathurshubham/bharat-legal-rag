@@ -2,21 +2,18 @@ from __future__ import annotations
 
 import time
 import uuid
-from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
 from .condense import condense_query
-from .config import settings
+from .config import REPO_ROOT, settings
 from .gateway import chat_completion
 from .rerank import rerank
-from .retrieval import retrieve
+from .retrieval import DEFAULT_VISIBILITY as _DEFAULT_VISIBILITY, retrieve
 
 router = APIRouter()
-
-REPO_ROOT = Path(__file__).parent.parent.parent.parent
 _GEN_MODEL = settings.gen_model
 _EMBED_MODEL = settings.embed_model
 
@@ -56,6 +53,7 @@ class Turn(BaseModel):
 class QueryRequest(BaseModel):
     q: str
     history: list[Turn] = Field(default_factory=list)
+    visibility: list[str] | None = None  # None → engine default (['public'])
 
 
 class QueryResponse(BaseModel):
@@ -107,6 +105,7 @@ async def query(
         demo_id=demo_id,
         mode=mode,
         top_k=top_k,
+        visibility=req.visibility,
         openrouter_key=x_openrouter_key,
         hyde_model=None,
         cf_account_id=cf_account_id,
@@ -174,6 +173,7 @@ async def query(
             "reranker_model": reranker_model or settings.reranker_model,
             "embed_model": _EMBED_MODEL,
             "prompt_version": prompt_version,
+            "visibility": req.visibility or list(_DEFAULT_VISIBILITY),
         },
         usage=gen_result["usage"],
         latency={

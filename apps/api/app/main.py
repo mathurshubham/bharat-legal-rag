@@ -1,14 +1,11 @@
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 import yaml
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .config import settings
+from .config import REPO_ROOT, settings
 from .db import close_pool, get_pool
-
-REPO_ROOT = Path(__file__).parent.parent.parent.parent
 
 
 @asynccontextmanager
@@ -58,6 +55,37 @@ async def list_demos():
                     "description": m.get("description", ""),
                 })
     return {"demos": demos}
+
+
+@app.get("/api/{demo}/corpus")
+async def corpus_info(demo: str):
+    """Return all ingested documents for a demo with chunk counts — live from DB."""
+    from psycopg.rows import dict_row
+    pool = await get_pool()
+    async with pool.connection() as conn:
+        conn.row_factory = dict_row
+        rows = await (await conn.execute(
+            """
+            SELECT doc_id, doc_title,
+                   count(*) AS chunk_count,
+                   count(DISTINCT section_ref) AS section_count
+            FROM chunks
+            WHERE demo_id = %s
+            GROUP BY doc_id, doc_title
+            ORDER BY doc_title
+            """,
+            (demo.lower(),),
+        )).fetchall()
+        total = await (await conn.execute(
+            "SELECT count(*) AS n FROM chunks WHERE demo_id = %s",
+            (demo.lower(),),
+        )).fetchone()
+
+    return {
+        "demo_id": demo.lower(),
+        "documents": [dict(r) for r in rows],
+        "total_chunks": total["n"] if total else 0,
+    }
 
 
 from .query import router as query_router  # noqa: E402

@@ -29,10 +29,14 @@ function buildUrl(demo: string, settings: Settings, mode: RetrievalMode): string
   return `${API_URL}/api/${demo}/query?${params.toString()}`
 }
 
-function buildHeaders(settings: Settings): string {
-  const h: Record<string, string> = { "Content-Type": "application/json" }
-  if (settings.openrouterKey) h["X-OpenRouter-Key"] = settings.openrouterKey
-  return JSON.stringify(h, null, 2)
+function buildHeaderPairs(settings: Settings): Array<{ key: string; value: string }> {
+  const pairs: Array<{ key: string; value: string }> = [
+    { key: "Content-Type", value: "application/json" },
+  ]
+  if (settings.openrouterKey) {
+    pairs.push({ key: "X-OpenRouter-Key", value: settings.openrouterKey })
+  }
+  return pairs
 }
 
 function CopyField({
@@ -72,20 +76,26 @@ function CopyField({
 }
 
 export function TryEvalExportModal({ demo, config, settings, mode, onClose }: Props) {
-  const [allCopied, setAllCopied] = useState(false)
+  const [allCopied, setAllCopied]                 = useState(false)
+  const [unfilterVisibility, setUnfilterVisibility] = useState(false)
 
-  const url     = buildUrl(demo, settings, mode)
-  const headers = buildHeaders(settings)
-  const name    = `${config.shortTitle} — ${MODE_LABELS[mode]}`
+  const url         = buildUrl(demo, settings, mode)
+  const headerPairs = buildHeaderPairs(settings)
+  const visSuffix   = unfilterVisibility ? " — visibility unfiltered" : ""
+  const name        = `${config.shortTitle} — ${MODE_LABELS[mode]}${visSuffix}`
 
-  const inputTemplate  = `{"q": "${"{PROMPT}"}"}`
-  const outputTemplate = `{"answer": "${"{RESULT}"}"}`
+  // TryEval uses ${PROMPT} and ${RESULT} as template variables
+  const inputTemplate  = unfilterVisibility
+    ? '{"q": "${PROMPT}", "visibility": ["public", "internal", "confidential"]}'
+    : '{"q": "${PROMPT}"}'
+  const outputTemplate = '{"answer": "${RESULT}"}'
 
   function copyAll() {
+    const headerLines = headerPairs.map(h => `  ${h.key}: ${h.value}`).join("\n")
     const text = [
       `Name: ${name}`,
       `URL: ${url}`,
-      `Headers:\n${headers}`,
+      `Headers:\n${headerLines}`,
       `Input Type: JSON`,
       `Input Template: ${inputTemplate}`,
       `Output Type: JSON`,
@@ -128,7 +138,21 @@ export function TryEvalExportModal({ demo, config, settings, mode, onClose }: Pr
 
           <CopyField label="Name" value={name} />
           <CopyField label="URL" value={url} mono />
-          <CopyField label="Headers (paste each key-value)" value={headers} mono rows={settings.openrouterKey ? 5 : 3} />
+
+          {/* Headers — one row per header, matching TryEval's "Add Header" key-value UI */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-slate-600 uppercase tracking-wide">
+              Headers <span className="normal-case font-normal text-slate-400">(add one at a time in TryEval)</span>
+            </label>
+            <div className="space-y-2">
+              {headerPairs.map(h => (
+                <div key={h.key} className="grid grid-cols-2 gap-2">
+                  <CopyField label="Key" value={h.key} mono />
+                  <CopyField label="Value" value={h.value} mono />
+                </div>
+              ))}
+            </div>
+          </div>
 
           <div className="grid grid-cols-2 gap-3">
             <CopyField label="Input Type" value="JSON" />
@@ -137,6 +161,21 @@ export function TryEvalExportModal({ demo, config, settings, mode, onClose }: Pr
 
           <CopyField label="Input Template" value={inputTemplate} mono />
           <CopyField label="Output Template" value={outputTemplate} mono />
+
+          <label className="flex items-start gap-2.5 text-[11px] text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-slate-100 transition-colors">
+            <input
+              type="checkbox"
+              checked={unfilterVisibility}
+              onChange={e => setUnfilterVisibility(e.target.checked)}
+              className="mt-0.5"
+            />
+            <span>
+              <strong className="text-slate-800">Bypass visibility filter</strong>
+              <span className="block text-slate-500 mt-0.5">
+                Includes <code className="font-mono text-[10px]">internal</code> and <code className="font-mono text-[10px]">confidential</code> docs in retrieval. Use to demonstrate the leak failure mode in TryEval — expect refusal/confidentiality rubrics to drop.
+              </span>
+            </span>
+          </label>
 
           <div className="grid grid-cols-2 gap-3">
             <CopyField label="Max Parallel Requests" value="1" />

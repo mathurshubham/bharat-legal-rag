@@ -1,0 +1,112 @@
+# Fictional "Acme Tasks" product spec — single source of truth for the support corpus generator.
+# Used by gen_support_corpus.py. Edit values here, then re-run the generator.
+
+product:
+  name: Acme Tasks
+  category: project management SaaS
+  positioning: "Modern project management for engineering and product teams"
+  launched: 2023-04
+  current_version: v4.2
+  recent_versions:
+    v4.2: 2026-05-12
+    v4.1: 2026-02-18
+    v4.0: 2025-11-03
+
+tiers:
+  free:
+    price_usd: 0
+    seats: 3
+    projects: 1
+    features:
+      - basic tasks
+      - 1 project
+      - kanban board
+      - 7-day history
+    api_rate_limit_per_min: 30
+  pro:
+    price_usd: 19
+    seats: 10
+    projects: unlimited
+    features:
+      - unlimited projects
+      - integrations (Slack, GitHub, Figma)
+      - 90-day history
+      - templates
+      - keyboard shortcuts
+    api_rate_limit_per_min: 300
+  business:
+    price_usd: 49
+    seats: 50
+    projects: unlimited
+    features:
+      - SSO (Google, SAML)
+      - audit log
+      - SLA 99.9%
+      - admin controls
+      - 1-year history
+      - priority support
+    api_rate_limit_per_min: 1000
+  enterprise:
+    price_usd: custom
+    seats: unlimited
+    features:
+      - SOC 2 Type II
+      - DPA + custom contracts
+      - SLA 99.95%
+      - dedicated CSM
+      - SCIM provisioning
+      - audit log export
+      - unlimited history
+    api_rate_limit_per_min: 5000
+
+refund_policy:
+  effective_date: 2026-01-01
+  supersedes: billing_refunds_v2
+  window_days: 30
+  method: prorated_annual
+  monthly_refundable: false
+  add_ons_refundable: false
+  agent_discretion_max_usd: 500
+
+stale_refund_policy:
+  effective_date: 2024-03-01
+  superseded_by: billing_refunds_v3
+  window_days: 14
+  method: full_refund_only
+  note: "Kept in corpus as a freshness trap — should not be quoted by current support."
+
+sla:
+  standard_uptime_pct: 99.9
+  enterprise_uptime_pct: 99.95
+  credit_ladder_pct:
+    "<99.9": 5
+    "<99.0": 10
+    "<98.0": 25
+
+escalation_thresholds:
+  billing_dispute_usd: 200
+  legal_threat: true
+  outage_p1: true
+  pii_request: true
+
+security:
+  certifications: [SOC 2 Type II, ISO 27001, GDPR]
+  encryption_at_rest: AES-256
+  encryption_in_transit: TLS 1.3
+  data_residency: [us-east, eu-west, ap-south]
+  sso: [SAML 2.0, OIDC, Google Workspace]
+
+competitors:
+  - name: CompetitorX
+    type: legacy enterprise PM
+    weaknesses: [slow UI, no API, expensive]
+  - name: CompetitorY
+    type: lightweight startup PM
+    weaknesses: [no SSO, no SOC2, weak permissions]
+
+roadmap_confidential:
+  q4_2026:
+    - AI-powered task triage (beta)
+    - native time tracking
+    - read-only public links
+    - SCIM provisioning GA

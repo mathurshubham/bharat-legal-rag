@@ -8,6 +8,7 @@ const config: DemoConfig = {
   primaryColor: "violet",
   disclaimerChip: "Class 10 Social Science",
   subtitle: "History · Geography · Economics · Political Science — NCERT Class 10",
+  about: "Padhai is grounded in 9 NCERT Class 10 Social Science chapters — three from History (The Rise of Nationalism in Europe, Nationalism in India, The Making of a Global World), two from Geography (Resources and Development; Forest and Wildlife Resources), two from Economics (Development; Sectors of the Indian Economy), and two from Political Science (Power Sharing; Federalism). It explains concepts in clear, age-appropriate language and cites the chapter section it draws from. It will not directly answer textbook exercise questions, and topics outside these specific chapters — including other subjects, other class levels, or general knowledge — are declined.",
   inputPlaceholder: "Ask about your Class 10 Social Science chapters…",
   suggestedQuestions: [
     { q: "Why did the non-cooperation movement start in India?",           icon: "🇮🇳" },

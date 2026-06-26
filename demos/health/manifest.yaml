@@ -51,6 +51,16 @@ refusal:
     - "please consult"
   ui_banner: "This is not covered in the indexed health information. Please consult a qualified healthcare professional."
 
+doc_visibility:
+  DIABETES_WHO: public
+  HYPERTENSION_WHO: public
+  TUBERCULOSIS_WHO: public
+  DENGUE_WHO: public
+  MALARIA_WHO: public
+  MENTAL_HEALTH_WHO: public
+  ANAEMIA_WHO: public
+  COVID19_WHO: public
+
 prompts:
   system_default_version: v1
   hyde_path: prompts/hyde.txt

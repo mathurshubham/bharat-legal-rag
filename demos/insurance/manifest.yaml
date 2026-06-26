@@ -44,6 +44,11 @@ refusal:
     - "not available in"
   ui_banner: "This question is not addressed in the indexed policy wordings."
 
+doc_visibility:
+  AROGYA_SANJEEVANI_IRDAI: public
+  SARAL_JEEVAN_BIMA: public
+  SARAL_SURAKSHA_BIMA: public
+
 prompts:
   system_default_version: v1
   hyde_path: prompts/hyde.txt

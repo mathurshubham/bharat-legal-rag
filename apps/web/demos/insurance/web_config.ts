@@ -8,6 +8,7 @@ const config: DemoConfig = {
   primaryColor: "teal",
   disclaimerChip: "Not financial advice",
   subtitle: "Arogya Sanjeevani · Saral Jeevan Bima · Saral Suraksha Bima",
+  about: "Beema is grounded in three IRDAI-standard policy wordings: Arogya Sanjeevani (standard health insurance), Saral Jeevan Bima (standard term life), and Saral Suraksha Bima (standard personal accident). For every coverage question it tells you explicitly whether the benefit is covered, excluded, or not addressed in the indexed wordings — and always surfaces waiting periods alongside benefits. Note: the Arogya Sanjeevani document indexed here is the 2020 IRDAI regulatory circular on sum-insured extension; for full hospitalisation and exclusion terms, refer to your insurer's issued policy document.",
   inputPlaceholder: "Ask about your policy coverage…",
   suggestedQuestions: [
     { q: "What is covered under Arogya Sanjeevani?",              icon: "🏥" },

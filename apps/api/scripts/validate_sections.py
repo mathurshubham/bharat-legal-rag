@@ -84,8 +84,11 @@ def validate_from_files(demo_id: str, checks: list[dict]) -> list[str]:
     if not corpus_dir.exists():
         return [f"corpus/clean/ not found at {corpus_dir}"]
 
+    SUPPORTED_EXTS = {".txt", ".md"}  # validate_from_files reads as text — skip PDFs
     texts: dict[str, str] = {}
-    for path in corpus_dir.glob("*"):
+    for path in corpus_dir.rglob("*"):
+        if not path.is_file() or path.suffix.lower() not in SUPPORTED_EXTS:
+            continue
         doc_id = path.stem.upper().replace("-", "_").replace(" ", "_")
         texts[doc_id] = path.read_text(encoding="utf-8", errors="replace")
 

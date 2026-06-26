@@ -133,19 +133,79 @@ def sub_chunk(section: dict) -> list[dict]:
 
 # ── Document loading ──────────────────────────────────────────────────────────
 
-def load_doc(path: Path) -> str:
+_FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
+
+
+def _split_frontmatter(text: str) -> tuple[dict, str]:
+    """Return (frontmatter_dict, body). Empty dict if no frontmatter."""
+    m = _FRONTMATTER_RE.match(text)
+    if not m:
+        return {}, text
+    try:
+        fm = yaml.safe_load(m.group(1)) or {}
+    except yaml.YAMLError:
+        return {}, text
+    if not isinstance(fm, dict):
+        return {}, text
+    return fm, text[m.end():]
+
+
+def load_doc(path: Path) -> tuple[str, dict]:
+    """Return (body_text, frontmatter_dict). Frontmatter only parsed for .md files."""
     if path.suffix == ".pdf":
         reader = PdfReader(str(path))
-        return "\n".join(page.extract_text() or "" for page in reader.pages)
-    return path.read_text(encoding="utf-8")
+        return "\n".join(page.extract_text() or "" for page in reader.pages), {}
+    raw = path.read_text(encoding="utf-8")
+    if path.suffix == ".md":
+        fm, body = _split_frontmatter(raw)
+        return body, fm
+    return raw, {}
+
+
+_VALID_VISIBILITY = ("public", "internal", "confidential")
+
+
+def _resolve_visibility(doc_id: str, frontmatter: dict, manifest: dict) -> str:
+    """Per-doc visibility: frontmatter > manifest.doc_visibility > 'public'."""
+    v = frontmatter.get("visibility")
+    if v is None:
+        v = manifest.get("doc_visibility", {}).get(doc_id)
+    if v is None:
+        return "public"
+    if v not in _VALID_VISIBILITY:
+        raise ValueError(f"Invalid visibility {v!r} for doc {doc_id}; expected one of {_VALID_VISIBILITY}")
+    return v
 
 
 # ── Per-document ingest ───────────────────────────────────────────────────────
 
+_METADATA_PASSTHROUGH = ("effective_date", "superseded_by", "audience", "version")
+
+
+def _stringify(v):
+    import datetime
+    if isinstance(v, (datetime.date, datetime.datetime)):
+        return v.isoformat()
+    return v
+
+
+def _build_metadata(frontmatter: dict) -> dict:
+    """Pluck whitelisted frontmatter keys into per-chunk metadata. Dates → ISO strings."""
+    md = {}
+    for k in _METADATA_PASSTHROUGH:
+        if k in frontmatter:
+            md[k] = _stringify(frontmatter[k])
+    return md
+
+
 def ingest_doc(conn: psycopg.Connection, demo_id: str, doc_id: str, path: Path,
                manifest: dict, hooks: dict) -> int:
     print(f"  Loading {path.name}...")
-    raw = load_doc(path)
+    raw, frontmatter = load_doc(path)
+    visibility = _resolve_visibility(doc_id, frontmatter, manifest)
+    metadata = _build_metadata(frontmatter)
+    print(f"  visibility={visibility}" + (f"  metadata={list(metadata)}" if metadata else ""))
+
     segments = segment_text(raw, doc_id, manifest, hooks)
     print(f"  {len(segments)} sections")
 
@@ -159,12 +219,14 @@ def ingest_doc(conn: psycopg.Connection, demo_id: str, doc_id: str, path: Path,
     vecs = embed_doc(texts)
 
     doc_title = manifest["doc_titles"].get(doc_id, doc_id)
+    metadata_json = json.dumps(metadata)
     rows = []
     for chunk, vec in zip(all_chunks, vecs):
         rows.append((
             demo_id, doc_id, doc_title,
             chunk["section_ref"], chunk["chunk_index"],
             chunk["text"], len(tokenize(chunk["text"])),
+            visibility, metadata_json,
             vec, json.dumps(embed_manifest),
             embed_manifest["model"],
         ))
@@ -174,8 +236,9 @@ def ingest_doc(conn: psycopg.Connection, demo_id: str, doc_id: str, path: Path,
             """
             INSERT INTO chunks
               (demo_id, doc_id, doc_title, section_ref, chunk_index, content, tokens,
+               visibility, metadata,
                embedding, embed_manifest, embed_model)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s::vector, %s::jsonb, %s)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s::jsonb, %s::vector, %s::jsonb, %s)
             """,
             rows,
         )
@@ -202,17 +265,23 @@ def main():
         print(f"Corpus dir not found: {corpus_dir}")
         sys.exit(1)
 
+    SUPPORTED_EXTS = {".pdf", ".txt", ".md"}
+    all_docs = sorted(
+        p for p in corpus_dir.rglob("*")
+        if p.is_file() and p.suffix.lower() in SUPPORTED_EXTS
+    )
+
     if args.doc:
         stem = args.doc.upper()
-        matches = list(corpus_dir.glob(f"{stem}*"))
-        if not matches:
-            print(f"No file matching {stem} in {corpus_dir}")
-            sys.exit(1)
-        docs = matches[:1]
-    else:
-        docs = list(corpus_dir.glob("*"))
+        docs = [p for p in all_docs if p.stem.upper() == stem or p.stem.upper().startswith(stem)]
         if not docs:
-            print("No files in corpus/clean/ — add corpus files first.")
+            print(f"No file matching {stem} under {corpus_dir}")
+            sys.exit(1)
+        docs = docs[:1]
+    else:
+        docs = all_docs
+        if not docs:
+            print(f"No supported files ({sorted(SUPPORTED_EXTS)}) under {corpus_dir}")
             sys.exit(1)
 
     conn = psycopg.connect(DB_URL)
