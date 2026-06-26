@@ -67,3 +67,26 @@ export async function fetchCorpus(demo: string): Promise<CorpusInfo | null> {
   if (!resp.ok) return null
   return resp.json()
 }
+
+export interface DatasetRow {
+  eval_context: string
+  input: string
+  output: string
+  expected_answer: string
+  expected_citations: string
+  expected_assertions: string
+}
+
+export interface DatasetInfo {
+  demo_id: string
+  columns: string[]
+  rows: DatasetRow[]
+  categories: Record<string, number>
+  total: number
+}
+
+export async function fetchDataset(demo: string): Promise<DatasetInfo | null> {
+  const resp = await fetch(`${API_URL}/api/${demo}/dataset`)
+  if (!resp.ok) return null
+  return resp.json()
+}

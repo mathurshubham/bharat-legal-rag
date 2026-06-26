@@ -88,5 +88,7 @@ async def corpus_info(demo: str):
     }
 
 
-from .query import router as query_router  # noqa: E402
+from .dataset import dataset_info             # noqa: E402
+from .query import router as query_router     # noqa: E402
+app.add_api_route("/api/{demo}/dataset", dataset_info, methods=["GET"])
 app.include_router(query_router)
