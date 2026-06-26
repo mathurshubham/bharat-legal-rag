@@ -8,6 +8,7 @@ const config: DemoConfig = {
   primaryColor: "indigo",
   disclaimerChip: "Not legal advice",
   subtitle: "BNS · BNSS · BSA · Constitution · Contract Act · CP 2019 · DPDP",
+  about: "Vidhi is grounded in 7 central Indian statutes — the Bharatiya Nyaya Sanhita 2023 (criminal law), BNSS 2023 (criminal procedure), BSA 2023 (evidence), the Constitution of India, the Contract Act 1872, the Consumer Protection Act 2019, and the DPDP Act 2023. It also carries a repeal-mapping reference so queries about older laws (IPC, CrPC, Indian Evidence Act) are automatically cross-referenced to their current equivalents. Every answer cites the exact section it draws from, and the bot refuses to answer when the relevant provision is not in the indexed corpus.",
   inputPlaceholder: "Ask about Indian law…",
   suggestedQuestions: [
     { q: "What is the punishment for murder under BNS 2023?",       icon: "⚖" },

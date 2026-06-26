@@ -8,6 +8,7 @@ const config: DemoConfig = {
   primaryColor: "sky",
   disclaimerChip: "Eval before ship",
   subtitle: "Billing · Subscriptions · SLA · SSO · API · Security",
+  about: "Acme Support is grounded in the Acme Tasks help center — covering billing and refund policies, subscription management, SSO and 2FA setup, API rate limits, data export, SLA commitments, security and compliance, account administration, integrations, and release notes through v4.2. Internal agent runbooks and confidential product information are kept in a separate restricted tier and are never surfaced in customer-facing responses. For issues requiring human judgment — billing disputes, legal matters, or service-impacting incidents — the bot escalates directly to the support team.",
   inputPlaceholder: "Ask Acme Tasks support…",
   suggestedQuestions: [
     { q: "Can I get a refund 45 days after my annual purchase?",      icon: "💸" },

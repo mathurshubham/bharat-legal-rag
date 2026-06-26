@@ -11,6 +11,7 @@ export interface DemoConfig {
   primaryColor: string   // Tailwind color name e.g. "indigo", "teal", "emerald"
   disclaimerChip: string
   subtitle: string
+  about: string          // 2-4 sentence description shown on empty state — what corpus, what it can do, key guardrails
   inputPlaceholder: string
   suggestedQuestions: SuggestedQuestion[]
   docColors: Record<string, string>   // doc_id → Tailwind classes

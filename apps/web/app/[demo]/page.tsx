@@ -211,7 +211,14 @@ export default function DemoPage({ params }: { params: Promise<{ demo: string }>
                   ))}
                 </div>
 
-                <p className="text-center text-[11px] text-slate-400 mt-8">{config.subtitle}</p>
+                {config.about && (
+                  <div className="mt-6 rounded-2xl border border-slate-200 bg-white px-5 py-4">
+                    <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">About this corpus</p>
+                    <p className="text-sm text-slate-600 leading-relaxed">{config.about}</p>
+                  </div>
+                )}
+
+                <p className="text-center text-[11px] text-slate-400 mt-6">{config.subtitle}</p>
               </div>
             ) : (
               <div className="max-w-2xl mx-auto space-y-6">
