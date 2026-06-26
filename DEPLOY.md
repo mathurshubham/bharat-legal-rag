@@ -64,6 +64,7 @@ The `.env` file must exist at the repo root with these values (do NOT commit it 
 OPENROUTER_API_KEY=sk-or-v1-...        # required — prevents 1.2 GB local model download
 DATABASE_URL=postgresql://legal:legal@localhost:5435/legalrag
 NEXT_PUBLIC_API_URL=https://indialegal-rag-api.shubhammathur.in
+CORS_ORIGINS=http://localhost:3002,https://indialegal-rag.shubhammathur.in
 
 POSTGRES_USER=legal
 POSTGRES_PASSWORD=legal
@@ -74,6 +75,15 @@ HYDE_MODEL=openai/gpt-4.1-mini
 RERANKER_MODEL=rerank-v3.5
 EMBED_MODEL=nvidia/llama-nemotron-embed-vl-1b-v2:free
 ```
+
+There must also be a symlink so the API process (which runs from `apps/api/`) can find the repo root `.env`:
+
+```bash
+# One-time setup — already done on this Pi:
+ln -s ../../.env ~/Documents/projects/bharat-legal-rag/apps/api/.env
+```
+
+Without this symlink `CORS_ORIGINS` is never loaded and the browser is blocked from calling the API, causing the demo picker to fall back to `/law`.
 
 There must also be `apps/web/.env.local` with:
 
