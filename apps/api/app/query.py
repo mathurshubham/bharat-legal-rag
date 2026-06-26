@@ -81,6 +81,7 @@ async def query(
     cf_gateway_id: str | None = None,
     x_openrouter_key: Annotated[str | None, Header()] = None,
 ):
+    x_openrouter_key = x_openrouter_key or settings.openrouter_api_key or None
     if not x_openrouter_key:
         raise HTTPException(status_code=401, detail="X-OpenRouter-Key header required")
 

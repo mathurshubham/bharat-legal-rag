@@ -60,7 +60,7 @@ export function SettingsPanel({ settings, onSave, onClose }: Props) {
         <div className="px-6 py-5 space-y-4">
           <Field
             label="OpenRouter API Key"
-            hint="Required · used for generation and reranking"
+            hint="Optional · overrides the server default key"
             type="password"
             placeholder="sk-or-..."
             value={draft.openrouterKey}
@@ -95,7 +95,7 @@ export function SettingsPanel({ settings, onSave, onClose }: Props) {
           </button>
           <button
             onClick={() => { onSave(draft); onClose() }}
-            disabled={!draft.openrouterKey}
+            disabled={false}
             className="flex-1 px-4 py-2.5 text-sm rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             Save
