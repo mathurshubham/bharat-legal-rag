@@ -15,12 +15,14 @@ import lawConfig       from "../../demos/law/web_config"
 import insuranceConfig from "../../demos/insurance/web_config"
 import healthConfig    from "../../demos/health/web_config"
 import educationConfig from "../../demos/education/web_config"
+import supportConfig   from "../../demos/support/web_config"
 
 const DEMO_CONFIGS: Record<string, DemoConfig> = {
   law:       lawConfig,
   insurance: insuranceConfig,
   health:    healthConfig,
   education: educationConfig,
+  support:   supportConfig,
 }
 
 function newId() { return Math.random().toString(36).slice(2) }

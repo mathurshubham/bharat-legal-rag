@@ -1,0 +1,143 @@
+{
+  "successes": [
+    {
+      "source": "linear",
+      "slug": "billing-and-plans",
+      "url": "https://linear.app/docs/billing-and-plans"
+    },
+    {
+      "source": "notion",
+      "slug": "security-and-privacy",
+      "url": "https://www.notion.so/help/security-and-privacy"
+    },
+    {
+      "source": "notion",
+      "slug": "two-step-verification",
+      "url": "https://www.notion.so/help/two-step-verification"
+    },
+    {
+      "source": "clickup",
+      "slug": "subscription-billing",
+      "url": "https://help.clickup.com/hc/en-us/articles/6303515832855"
+    },
+    {
+      "source": "clickup",
+      "slug": "cancel-subscription",
+      "url": "https://help.clickup.com/hc/en-us/articles/6303528232855"
+    },
+    {
+      "source": "clickup",
+      "slug": "notifications",
+      "url": "https://help.clickup.com/hc/en-us/articles/6328422193943"
+    },
+    {
+      "source": "asana",
+      "slug": "downgrade",
+      "url": "https://asana.com/guide/help/premium/downgrade"
+    },
+    {
+      "source": "asana",
+      "slug": "sso-setup",
+      "url": "https://asana.com/guide/help/premium/sso"
+    },
+    {
+      "source": "asana",
+      "slug": "data-export",
+      "url": "https://asana.com/guide/help/premium/csv-export"
+    },
+    {
+      "source": "asana",
+      "slug": "project-templates",
+      "url": "https://asana.com/guide/help/projects/templates"
+    },
+    {
+      "source": "jira",
+      "slug": "pricing-and-licensing",
+      "url": "https://support.atlassian.com/jira-software-cloud/docs/pricing-and-licensing/"
+    },
+    {
+      "source": "jira",
+      "slug": "user-permissions",
+      "url": "https://support.atlassian.com/jira-cloud-administration/docs/configure-permissions/"
+    },
+    {
+      "source": "jira",
+      "slug": "mobile-app",
+      "url": "https://support.atlassian.com/jira-cloud-mobile/docs/get-started-with-the-jira-cloud-mobile-app/"
+    },
+    {
+      "source": "slack",
+      "slug": "sso-saml",
+      "url": "https://slack.com/help/articles/203772216-Set-up-SAML-based-SSO"
+    },
+    {
+      "source": "slack",
+      "slug": "integrations",
+      "url": "https://slack.com/help/articles/115005265703-Manage-apps-on-Slack"
+    },
+    {
+      "source": "atlassian-sla",
+      "slug": "sla-overview",
+      "url": "https://www.atlassian.com/legal/sla"
+    }
+  ],
+  "failures": [
+    {
+      "entry": {
+        "source": "linear",
+        "slug": "saml-sso",
+        "url": "https://linear.app/docs/saml-sso"
+      },
+      "error": "empty / too-short result (125 chars)"
+    },
+    {
+      "entry": {
+        "source": "linear",
+        "slug": "api-rate-limits",
+        "url": "https://linear.app/docs/rate-limiting"
+      },
+      "error": "empty / too-short result (130 chars)"
+    },
+    {
+      "entry": {
+        "source": "linear",
+        "slug": "keyboard-shortcuts",
+        "url": "https://linear.app/docs/keyboard-shortcuts"
+      },
+      "error": "empty / too-short result (135 chars)"
+    },
+    {
+      "entry": {
+        "source": "linear",
+        "slug": "import",
+        "url": "https://linear.app/docs/import"
+      },
+      "error": "empty / too-short result (123 chars)"
+    },
+    {
+      "entry": {
+        "source": "notion",
+        "slug": "billing-faqs",
+        "url": "https://www.notion.so/help/billing-faqs"
+      },
+      "error": "empty / too-short result (192 chars)"
+    },
+    {
+      "entry": {
+        "source": "notion",
+        "slug": "change-your-plan",
+        "url": "https://www.notion.so/help/change-your-plan"
+      },
+      "error": "empty / too-short result (192 chars)"
+    },
+    {
+      "entry": {
+        "source": "notion",
+        "slug": "exporting-content",
+        "url": "https://www.notion.so/help/exporting-content-from-notion"
+      },
+      "error": "empty / too-short result (192 chars)"
+    }
+  ],
+  "total_attempted": 23
+}

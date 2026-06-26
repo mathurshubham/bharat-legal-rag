@@ -1,4 +1,27 @@
+import os
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+def _find_repo_root() -> Path:
+    """Walk up from this file looking for the `demos/` directory.
+
+    Works for both local dev (`apps/api/app/config.py` → repo root 4 levels up)
+    and the docker image (`/app/app/config.py` where code lives at `/app/`).
+    """
+    env = os.environ.get("REPO_ROOT")
+    if env:
+        return Path(env).resolve()
+    here = Path(__file__).resolve()
+    for candidate in [here.parent, *here.parents]:
+        if (candidate / "demos").is_dir():
+            return candidate
+    # Fallback — preserves prior behaviour at original call site
+    return here.parent.parent.parent.parent
+
+
+REPO_ROOT: Path = _find_repo_root()
 
 
 class Settings(BaseSettings):

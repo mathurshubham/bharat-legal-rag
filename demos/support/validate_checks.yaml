@@ -1,0 +1,107 @@
+# Support demo — substring-asserting section validation checks.
+# Format: {doc_id, section_ref, substring, description}
+# Every check asserts the substring appears in the combined content of the matching chunks.
+
+checks:
+  # ── Refund policies (current + stale trap) ──
+  - doc_id: BILLING_REFUNDS_V3
+    section_ref: "*"
+    substring: "30 day"
+    description: "Current refund policy mentions 30-day window"
+
+  - doc_id: BILLING_REFUNDS_V3
+    section_ref: "*"
+    substring: "prorated"
+    description: "Current refund policy mentions prorated method"
+
+  - doc_id: BILLING_REFUNDS_V2
+    section_ref: "*"
+    substring: "14-day"
+    description: "Stale refund policy still says 14-day (kept as freshness trap)"
+
+  # ── Subscription / pricing ──
+  - doc_id: SUBSCRIPTION_CHANGES
+    section_ref: "*"
+    substring: "downgrade"
+    description: "Subscription doc covers downgrade flow"
+
+  - doc_id: PLANS_AND_PRICING
+    section_ref: "*"
+    substring: "pro"
+    description: "Pricing doc lists Pro tier"
+
+  - doc_id: PLANS_AND_PRICING
+    section_ref: "*"
+    substring: "business"
+    description: "Pricing doc lists Business tier"
+
+  - doc_id: PLANS_AND_PRICING
+    section_ref: "*"
+    substring: "enterprise"
+    description: "Pricing doc lists Enterprise tier"
+
+  # ── SLA (conflict trap pair) ──
+  - doc_id: SLA_UPTIME
+    section_ref: "*"
+    substring: "99.9"
+    description: "Standard SLA is 99.9%"
+
+  - doc_id: ENTERPRISE_SLA_ADDENDUM
+    section_ref: "*"
+    substring: "99.95"
+    description: "Enterprise SLA addendum is 99.95% (conflict trap)"
+
+  # ── Security ──
+  - doc_id: SECURITY_COMPLIANCE
+    section_ref: "*"
+    substring: "soc"
+    description: "Security doc references SOC 2"
+
+  - doc_id: SSO_SETUP
+    section_ref: "*"
+    substring: "saml"
+    description: "SSO doc covers SAML"
+
+  - doc_id: TWO_FACTOR_AUTH
+    section_ref: "*"
+    substring: "authenticator"
+    description: "2FA doc references authenticator app"
+
+  # ── API ──
+  - doc_id: API_RATE_LIMITS
+    section_ref: "*"
+    substring: "rate limit"
+    description: "API doc references rate limit"
+
+  # ── Internal-only docs (must ingest with visibility=internal) ──
+  - doc_id: REFUND_POLICY_INTERNAL_V3
+    section_ref: "*"
+    substring: "at-agent-discretion"
+    description: "Internal refund discretion ladder is documented"
+
+  - doc_id: ESCALATION_MATRIX
+    section_ref: "*"
+    substring: "legal"
+    description: "Escalation matrix routes legal threats"
+
+  - doc_id: PII_HANDLING
+    section_ref: "*"
+    substring: "third-party"
+    description: "PII handling covers third-party disclosure"
+
+  # ── Confidential traps ──
+  - doc_id: COMPETITOR_X_BATTLECARD
+    section_ref: "*"
+    substring: "competitor"
+    description: "CompetitorX battlecard exists (confidential)"
+
+  - doc_id: ROADMAP_Q4_2026
+    section_ref: "*"
+    substring: "roadmap"
+    description: "Q4 2026 roadmap exists (confidential)"
+
+  # ── Release notes ──
+  - doc_id: RELEASE_V4_2
+    section_ref: "*"
+    substring: "SCIM"
+    description: "v4.2 highlights SCIM provisioning"

@@ -49,6 +49,17 @@ refusal:
     - "not available in"
   ui_banner: "This is outside your indexed NCERT chapters. Check with your teacher or another reference."
 
+doc_visibility:
+  HIST_CH1_NATIONALISM_EUROPE: public
+  HIST_CH2_NATIONALISM_INDIA: public
+  HIST_CH3_GLOBAL_WORLD: public
+  GEO_CH1_RESOURCES: public
+  GEO_CH2_FOREST_WILDLIFE: public
+  ECON_CH1_DEVELOPMENT: public
+  ECON_CH2_SECTORS: public
+  CIVICS_CH1_POWER_SHARING: public
+  CIVICS_CH2_FEDERALISM: public
+
 prompts:
   system_default_version: v1
   hyde_path: prompts/hyde.txt

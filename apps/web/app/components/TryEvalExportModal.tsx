@@ -72,13 +72,17 @@ function CopyField({
 }
 
 export function TryEvalExportModal({ demo, config, settings, mode, onClose }: Props) {
-  const [allCopied, setAllCopied] = useState(false)
+  const [allCopied, setAllCopied]                 = useState(false)
+  const [unfilterVisibility, setUnfilterVisibility] = useState(false)
 
   const url     = buildUrl(demo, settings, mode)
   const headers = buildHeaders(settings)
-  const name    = `${config.shortTitle} — ${MODE_LABELS[mode]}`
+  const visSuffix = unfilterVisibility ? " — visibility unfiltered" : ""
+  const name    = `${config.shortTitle} — ${MODE_LABELS[mode]}${visSuffix}`
 
-  const inputTemplate  = `{"q": "${"{PROMPT}"}"}`
+  const inputTemplate  = unfilterVisibility
+    ? `{"q": "${"{PROMPT}"}", "visibility": ["public", "internal", "confidential"]}`
+    : `{"q": "${"{PROMPT}"}"}`
   const outputTemplate = `{"answer": "${"{RESULT}"}"}`
 
   function copyAll() {
@@ -137,6 +141,21 @@ export function TryEvalExportModal({ demo, config, settings, mode, onClose }: Pr
 
           <CopyField label="Input Template" value={inputTemplate} mono />
           <CopyField label="Output Template" value={outputTemplate} mono />
+
+          <label className="flex items-start gap-2.5 text-[11px] text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-slate-100 transition-colors">
+            <input
+              type="checkbox"
+              checked={unfilterVisibility}
+              onChange={e => setUnfilterVisibility(e.target.checked)}
+              className="mt-0.5"
+            />
+            <span>
+              <strong className="text-slate-800">Bypass visibility filter</strong>
+              <span className="block text-slate-500 mt-0.5">
+                Includes <code className="font-mono text-[10px]">internal</code> and <code className="font-mono text-[10px]">confidential</code> docs in retrieval. Use to demonstrate the leak failure mode in TryEval — expect refusal/confidentiality rubrics to drop.
+              </span>
+            </span>
+          </label>
 
           <div className="grid grid-cols-2 gap-3">
             <CopyField label="Max Parallel Requests" value="1" />

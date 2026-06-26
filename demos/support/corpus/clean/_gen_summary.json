@@ -1,0 +1,25 @@
+{
+  "model": "anthropic/claude-sonnet-4-6",
+  "successes": [
+    "SUBSCRIPTION_CHANGES",
+    "PLANS_AND_PRICING",
+    "SSO_SETUP",
+    "API_RATE_LIMITS",
+    "DATA_EXPORT",
+    "SECURITY_COMPLIANCE",
+    "ACCOUNT_ADMIN",
+    "NOTIFICATIONS",
+    "MOBILE_APP",
+    "INTEGRATIONS_OVERVIEW",
+    "TWO_FACTOR_AUTH",
+    "PASSWORD_RESET",
+    "PROJECT_TEMPLATES",
+    "KEYBOARD_SHORTCUTS",
+    "RELEASE_V4_0",
+    "RELEASE_V4_1",
+    "RELEASE_V4_2",
+    "TONE_GUIDELINES_INTERNAL",
+    "COMPETITOR_Y_BATTLECARD"
+  ],
+  "failures": []
+}

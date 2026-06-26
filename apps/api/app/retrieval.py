@@ -12,16 +12,16 @@ Every query is scoped to a single demo_id — zero cross-demo leakage.
 from __future__ import annotations
 
 import asyncio
-from pathlib import Path
 
 import psycopg
 from psycopg.rows import dict_row
 
+from .config import REPO_ROOT
 from .db import get_pool
 from .embed import embed_query
 
 RRF_K = 60
-REPO_ROOT = Path(__file__).parent.parent.parent.parent
+DEFAULT_VISIBILITY: tuple[str, ...] = ("public",)
 
 
 def _load_hyde_prompt(demo_id: str) -> str:
@@ -36,35 +36,37 @@ def _load_hyde_prompt(demo_id: str) -> str:
 
 
 async def _dense(
-    conn: psycopg.AsyncConnection, vec: list[float], top_k: int, demo_id: str
+    conn: psycopg.AsyncConnection, vec: list[float], top_k: int, demo_id: str,
+    visibility: list[str],
 ) -> list[dict]:
     cur = await conn.execute(
         """
-        SELECT id, doc_id, doc_title, section_ref, content,
+        SELECT id, doc_id, doc_title, section_ref, content, visibility,
                1 - (embedding <=> %s::vector) AS score
         FROM chunks
-        WHERE demo_id = %s
+        WHERE demo_id = %s AND visibility = ANY(%s)
         ORDER BY embedding <=> %s::vector
         LIMIT %s
         """,
-        (vec, demo_id, vec, top_k),
+        (vec, demo_id, visibility, vec, top_k),
     )
     return await cur.fetchall()
 
 
 async def _bm25(
-    conn: psycopg.AsyncConnection, query: str, top_k: int, demo_id: str
+    conn: psycopg.AsyncConnection, query: str, top_k: int, demo_id: str,
+    visibility: list[str],
 ) -> list[dict]:
     cur = await conn.execute(
         """
-        SELECT id, doc_id, doc_title, section_ref, content,
+        SELECT id, doc_id, doc_title, section_ref, content, visibility,
                paradedb.score(id) AS score
         FROM chunks
-        WHERE content @@@ %s AND demo_id = %s
+        WHERE content @@@ %s AND demo_id = %s AND visibility = ANY(%s)
         ORDER BY score DESC
         LIMIT %s
         """,
-        (query, demo_id, top_k),
+        (query, demo_id, visibility, top_k),
     )
     return await cur.fetchall()
 
@@ -98,27 +100,30 @@ async def retrieve(
     mode: str = "hybrid",
     top_k: int = 20,
     *,
+    visibility: list[str] | None = None,
     openrouter_key: str | None = None,
     hyde_model: str | None = None,
     cf_account_id: str | None = None,
     cf_gateway_id: str | None = None,
 ) -> list[dict]:
+    vis = list(visibility) if visibility else list(DEFAULT_VISIBILITY)
+
     pool = await get_pool()
     async with pool.connection() as conn:
         conn.row_factory = dict_row
 
         if mode == "vanilla":
             vec = embed_query([query])[0]
-            return await _dense(conn, vec, top_k, demo_id)
+            return await _dense(conn, vec, top_k, demo_id, vis)
 
         if mode == "bm25":
-            return await _bm25(conn, query, top_k, demo_id)
+            return await _bm25(conn, query, top_k, demo_id, vis)
 
         if mode == "hybrid":
             vec = embed_query([query])[0]
             dense_rows, bm25_rows = await asyncio.gather(
-                _dense(conn, vec, top_k, demo_id),
-                _bm25(conn, query, top_k, demo_id),
+                _dense(conn, vec, top_k, demo_id, vis),
+                _bm25(conn, query, top_k, demo_id, vis),
             )
             return _rrf(dense_rows, bm25_rows, top_k)
 
@@ -139,6 +144,6 @@ async def retrieve(
             )
             hypothetical_doc = result["text"].strip()
             vec = embed_query([hypothetical_doc])[0]
-            return await _dense(conn, vec, top_k, demo_id)
+            return await _dense(conn, vec, top_k, demo_id, vis)
 
         raise ValueError(f"Unknown retrieval mode: {mode!r}")

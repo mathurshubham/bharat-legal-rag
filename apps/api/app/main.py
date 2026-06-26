@@ -1,14 +1,11 @@
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 import yaml
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .config import settings
+from .config import REPO_ROOT, settings
 from .db import close_pool, get_pool
-
-REPO_ROOT = Path(__file__).parent.parent.parent.parent
 
 
 @asynccontextmanager
