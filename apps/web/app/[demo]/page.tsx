@@ -211,11 +211,11 @@ export default function DemoPage({ params }: { params: Promise<{ demo: string }>
 
           <div className="w-px h-4 bg-[var(--border)] mx-1.5 hidden sm:block" />
           <ThemeToggle />
-          <div className="w-px h-4 bg-[var(--border)] mx-1.5" />
+          <div className="w-px h-4 bg-[var(--border)] mx-1.5 hidden sm:block" />
 
-          {/* Settings */}
+          {/* Settings — desktop only; mobile uses Tools dropdown */}
           <button onClick={() => setShowSettings(true)}
-            className={`h-8 px-3 flex items-center gap-1.5 text-[12px] font-medium rounded-lg border transition-all ${
+            className={`h-8 px-3 hidden sm:flex items-center gap-1.5 text-[12px] font-medium rounded-lg border transition-all ${
               settings.openrouterKey
                 ? "text-[var(--text-2)] border-[var(--border)] hover:text-[var(--text)] hover:border-[var(--border-hi)] hover:bg-[var(--bg-card)]"
                 : "text-red-500 border-red-500/30 hover:bg-red-500/10"
