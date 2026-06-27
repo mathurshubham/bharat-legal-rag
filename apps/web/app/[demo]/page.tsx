@@ -148,11 +148,17 @@ export default function DemoPage({ params }: { params: Promise<{ demo: string }>
           <div className="sm:hidden relative">
             <button
               onClick={() => setShowMobileMenu(o => !o)}
-              className="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-3)] hover:text-[var(--text)] hover:bg-[var(--bg-card)] transition-colors"
+              title="Tools"
+              className={`flex items-center gap-1.5 h-8 px-2.5 text-[12px] font-medium rounded-lg border transition-all ${
+                showMobileMenu
+                  ? "bg-[var(--bg-card)] border-[var(--border-hi)] text-[var(--text)]"
+                  : "border-[var(--border)] text-[var(--text-2)] hover:border-[var(--border-hi)] hover:bg-[var(--bg-card)] hover:text-[var(--text)]"
+              }`}
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h.01M12 12h.01M19 12h.01" />
               </svg>
+              <span>Tools</span>
             </button>
             {showMobileMenu && (
               <div
@@ -160,14 +166,15 @@ export default function DemoPage({ params }: { params: Promise<{ demo: string }>
                 style={{ boxShadow: "0 10px 30px rgba(0,0,0,0.3)" }}
               >
                 {[
-                  { label: "Corpus", action: () => { setShowCorpus(true); setShowMobileMenu(false) } },
-                  { label: "Dataset", action: () => { setShowDataset(true); setShowMobileMenu(false) } },
-                  { label: "TryEval", action: () => { setShowTryEval(true); setShowMobileMenu(false) } },
-                  { label: "Settings", action: () => { setShowSettings(true); setShowMobileMenu(false) } },
+                  { label: "Corpus",   hint: "Indexed documents",     action: () => { setShowCorpus(true);    setShowMobileMenu(false) } },
+                  { label: "Dataset",  hint: "Eval golden set",        action: () => { setShowDataset(true);   setShowMobileMenu(false) } },
+                  { label: "TryEval",  hint: "Export endpoint config", action: () => { setShowTryEval(true);  setShowMobileMenu(false) } },
+                  { label: "Settings", hint: "API keys",               action: () => { setShowSettings(true); setShowMobileMenu(false) } },
                 ].map(item => (
                   <button key={item.label} onClick={item.action}
-                    className="w-full text-left px-4 py-2.5 text-[13px] text-[var(--text-2)] hover:text-[var(--text)] hover:bg-[var(--bg-card)] transition-colors">
-                    {item.label}
+                    className="w-full text-left px-4 py-3 hover:bg-[var(--bg-card)] transition-colors border-b border-[var(--border)] last:border-0">
+                    <p className="text-[13px] font-medium text-[var(--text)]">{item.label}</p>
+                    <p className="text-[11px] text-[var(--text-3)] mt-0.5">{item.hint}</p>
                   </button>
                 ))}
               </div>
