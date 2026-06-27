@@ -1,7 +1,8 @@
 "use client"
 
 import { use, useEffect, useRef, useState } from "react"
-import type { ChatMessage, QueryResponse, Settings, Turn } from "@/lib/types"
+import { useRouter } from "next/navigation"
+import type { ChatMessage, Settings, Turn } from "@/lib/types"
 import { postQuery, type RetrievalMode } from "@/lib/api"
 import type { DemoConfig } from "@/lib/demoConfig"
 import { MessageBubble } from "../components/MessageBubble"
@@ -10,8 +11,9 @@ import { SettingsPanel } from "../components/SettingsPanel"
 import { TryEvalExportModal } from "../components/TryEvalExportModal"
 import { CorpusModal } from "../components/CorpusModal"
 import { DatasetModal } from "../components/DatasetModal"
+import { DemoPicker } from "../components/DemoPicker"
+import { ThemeToggle } from "../components/ThemeToggle"
 
-// Per-demo configs — add new demos here as they are built
 import lawConfig       from "../../demos/law/web_config"
 import insuranceConfig from "../../demos/insurance/web_config"
 import healthConfig    from "../../demos/health/web_config"
@@ -19,11 +21,13 @@ import educationConfig from "../../demos/education/web_config"
 import supportConfig   from "../../demos/support/web_config"
 
 const DEMO_CONFIGS: Record<string, DemoConfig> = {
-  law:       lawConfig,
-  insurance: insuranceConfig,
-  health:    healthConfig,
-  education: educationConfig,
-  support:   supportConfig,
+  law: lawConfig, insurance: insuranceConfig,
+  health: healthConfig, education: educationConfig, support: supportConfig,
+}
+
+const DEMO_ACCENT: Record<string, string> = {
+  law: "#4f46e5", insurance: "#0d9488", health: "#059669",
+  education: "#7c3aed", support: "#0284c7",
 }
 
 function newId() { return Math.random().toString(36).slice(2) }
@@ -33,42 +37,42 @@ const _EMPTY: Settings = { openrouterKey: "", cfAccountId: "", cfGatewayId: "" }
 
 function loadSettings(): Settings {
   if (typeof window === "undefined") return _EMPTY
-  try {
-    const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? "null")
-    return s ? { ..._EMPTY, ...s } : _EMPTY
-  } catch { return _EMPTY }
+  try { return JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? "null") ?? _EMPTY } catch { return _EMPTY }
+}
+function saveSettings(s: Settings) {
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(s)) } catch {}
 }
 
-function saveSettings(s: Settings) {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(s))
-}
+const MODES = [
+  { id: "hybrid",  label: "Hybrid",   desc: "Dense + BM25 → RRF" },
+  { id: "bm25",    label: "BM25",     desc: "Full-text only" },
+  { id: "vanilla", label: "RAG only", desc: "Dense vector" },
+  { id: "hyde",    label: "HyDE",     desc: "Hypothetical doc → embed" },
+] as const
 
 export default function DemoPage({ params }: { params: Promise<{ demo: string }> }) {
   const { demo } = use(params)
-  const config = DEMO_CONFIGS[demo] ?? lawConfig   // fallback to law until all demos are registered
+  const router = useRouter()
+  const config = DEMO_CONFIGS[demo] ?? lawConfig
+  const accent = DEMO_ACCENT[demo] ?? "#6366f1"
 
-  const [messages, setMessages]           = useState<ChatMessage[]>([])
-  const [input, setInput]                 = useState("")
-  const [loading, setLoading]             = useState(false)
-  const [showSettings, setShowSettings]   = useState(false)
-  // Initialize empty to match SSR; load from localStorage after mount to avoid hydration mismatch
-  const [settings, setSettings]           = useState<Settings>(_EMPTY)
+  const [messages, setMessages]         = useState<ChatMessage[]>([])
+  const [input, setInput]               = useState("")
+  const [loading, setLoading]           = useState(false)
+  const [settings, setSettings]         = useState<Settings>(_EMPTY)
   const [activeSources, setActiveSources] = useState<string | null>(null)
-  const [mode, setMode]                   = useState<RetrievalMode>("hybrid")
-  const [showTryEval, setShowTryEval]     = useState(false)
-  const [showCorpus, setShowCorpus]       = useState(false)
-  const [showDataset, setShowDataset]     = useState(false)
+  const [mode, setMode]                 = useState<RetrievalMode>("hybrid")
+  const [showSettings, setShowSettings] = useState(false)
+  const [showTryEval, setShowTryEval]   = useState(false)
+  const [showCorpus, setShowCorpus]     = useState(false)
+  const [showMobileMenu, setShowMobileMenu] = useState(false)
+  const [showDataset, setShowDataset]   = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef  = useRef<HTMLTextAreaElement>(null)
   const abortRef  = useRef<AbortController | null>(null)
 
-  useEffect(() => {
-    setSettings(loadSettings())
-  }, [])
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages])
+  useEffect(() => { setSettings(loadSettings()) }, [])
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }) }, [messages])
 
   const activeResponse = activeSources
     ? messages.find(m => m.id === activeSources)?.response ?? null
@@ -77,40 +81,32 @@ export default function DemoPage({ params }: { params: Promise<{ demo: string }>
   const buildHistory = (): Turn[] =>
     messages.filter(m => !m.isLoading && !m.error).map(m => ({ role: m.role, content: m.content }))
 
-  function toggleSources(id: string) {
-    setActiveSources(prev => (prev === id ? null : id))
-  }
-
   async function send(q: string) {
     if (!q.trim() || loading) return
 
-    const userId   = newId()
-    const assistId = newId()
-    const userMsg: ChatMessage = { id: userId,   role: "user",      content: q }
-    const loadMsg: ChatMessage = { id: assistId, role: "assistant", content: "", isLoading: true }
-
-    setMessages(prev => [...prev, userMsg, loadMsg])
-    setInput("")
-    setLoading(true)
+    const userId = newId(), assistId = newId()
+    setMessages(prev => [
+      ...prev,
+      { id: userId,   role: "user",      content: q },
+      { id: assistId, role: "assistant", content: "", isLoading: true },
+    ])
+    setInput(""); setLoading(true)
     inputRef.current?.focus()
 
     const ctrl = new AbortController()
     abortRef.current = ctrl
-
     try {
       const resp = await postQuery(demo, q, buildHistory(), settings, mode, ctrl.signal)
-      setMessages(prev =>
-        prev.map(m => m.id === assistId
-          ? { ...m, isLoading: false, content: resp.answer, response: resp }
-          : m),
-      )
+      setMessages(prev => prev.map(m =>
+        m.id === assistId ? { ...m, isLoading: false, content: resp.answer, response: resp } : m
+      ))
       setActiveSources(assistId)
     } catch (err: unknown) {
       if ((err as Error).name === "AbortError") return
       const msg = err instanceof Error ? err.message : String(err)
-      setMessages(prev =>
-        prev.map(m => m.id === assistId ? { ...m, isLoading: false, error: msg, content: "" } : m),
-      )
+      setMessages(prev => prev.map(m =>
+        m.id === assistId ? { ...m, isLoading: false, error: msg, content: "" } : m
+      ))
     } finally {
       setLoading(false)
       abortRef.current = null
@@ -121,77 +117,107 @@ export default function DemoPage({ params }: { params: Promise<{ demo: string }>
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(input) }
   }
 
-  function handleSettings(s: Settings) { setSettings(s); saveSettings(s) }
-
   const empty = messages.length === 0
-  const iconBg = `bg-${config.primaryColor}-600`
-  const iconBgStyle = { backgroundColor: config.primaryColor === "indigo" ? "#4f46e5" : undefined }
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-slate-50">
+    <div className="flex flex-col h-screen overflow-hidden bg-[var(--bg)]">
+
       {/* ── Header ── */}
-      <header className="flex items-center justify-between px-5 py-3 bg-white border-b border-slate-200 shrink-0 z-10">
-        <div className="flex items-center gap-3">
-          <div
-            className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-base shadow-sm"
-            style={{ backgroundColor: primaryHex(config.primaryColor) }}
+      <header className="flex items-center justify-between px-3 sm:px-4 h-12 border-b border-[var(--border)] shrink-0 z-20 bg-[var(--bg)]">
+
+        {/* Left: back + switcher */}
+        <div className="flex items-center gap-0.5">
+          <button
+            onClick={() => router.push("/")}
+            title="Back to dashboard"
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-3)] hover:text-[var(--text)] hover:bg-[var(--bg-card)] transition-colors"
           >
-            {config.icon}
-          </div>
-          <div>
-            <h1 className="text-sm font-semibold text-slate-900 leading-tight">{config.title}</h1>
-            <p className="text-[10px] text-slate-400 leading-tight mt-0.5">{config.subtitle}</p>
-          </div>
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+
+          <div className="w-px h-4 bg-[var(--border)] mx-1" />
+
+          <DemoPicker currentDemo={demo} config={config} />
         </div>
 
-        <div className="flex items-center gap-2">
-          <div className="hidden sm:flex items-center gap-1.5 bg-amber-50 border border-amber-200 rounded-lg px-2.5 py-1 text-[10px] text-amber-700 font-medium">
-            <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-            </svg>
-            {config.disclaimerChip}
+        {/* Right: tools + theme + settings */}
+        <div className="flex items-center">
+          {/* Mobile ⋯ menu — visible only on mobile */}
+          <div className="sm:hidden relative">
+            <button
+              onClick={() => setShowMobileMenu(o => !o)}
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-[var(--text-3)] hover:text-[var(--text)] hover:bg-[var(--bg-card)] transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h.01M12 12h.01M19 12h.01" />
+              </svg>
+            </button>
+            {showMobileMenu && (
+              <div
+                className="absolute right-0 top-full mt-1.5 w-44 bg-[var(--bg-surface)] border border-[var(--border)] rounded-xl shadow-xl overflow-hidden z-50"
+                style={{ boxShadow: "0 10px 30px rgba(0,0,0,0.3)" }}
+              >
+                {[
+                  { label: "Corpus", action: () => { setShowCorpus(true); setShowMobileMenu(false) } },
+                  { label: "Dataset", action: () => { setShowDataset(true); setShowMobileMenu(false) } },
+                  { label: "TryEval", action: () => { setShowTryEval(true); setShowMobileMenu(false) } },
+                  { label: "Settings", action: () => { setShowSettings(true); setShowMobileMenu(false) } },
+                ].map(item => (
+                  <button key={item.label} onClick={item.action}
+                    className="w-full text-left px-4 py-2.5 text-[13px] text-[var(--text-2)] hover:text-[var(--text)] hover:bg-[var(--bg-card)] transition-colors">
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
-          <button
-            onClick={() => setShowCorpus(true)}
-            className="hidden sm:flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 border border-slate-200 rounded-lg px-3 py-1.5 hover:bg-slate-50 transition-colors"
-            title="View indexed corpus"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-            </svg>
-            Corpus
-          </button>
+          {/* Labeled tool buttons — hidden on mobile */}
+          <div className="hidden sm:flex items-center gap-1.5">
+            {/* Corpus */}
+            <button onClick={() => setShowCorpus(true)}
+              className="flex items-center gap-1.5 h-8 px-3 text-[12px] font-medium text-[var(--text-2)] border border-[var(--border)] rounded-lg hover:text-[var(--text)] hover:border-[var(--border-hi)] hover:bg-[var(--bg-card)] transition-all">
+              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+              Corpus
+            </button>
 
-          <button
-            onClick={() => setShowDataset(true)}
-            className="hidden sm:flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 border border-slate-200 rounded-lg px-3 py-1.5 hover:bg-slate-50 transition-colors"
-            title="View golden eval dataset"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M3 14h18M10 3v18M14 3v18" />
-            </svg>
-            Dataset
-          </button>
+            {/* Dataset */}
+            <button onClick={() => setShowDataset(true)}
+              className="flex items-center gap-1.5 h-8 px-3 text-[12px] font-medium text-[var(--text-2)] border border-[var(--border)] rounded-lg hover:text-[var(--text)] hover:border-[var(--border-hi)] hover:bg-[var(--bg-card)] transition-all">
+              <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M3 14h18M10 3v18M14 3v18" />
+              </svg>
+              Dataset
+            </button>
 
-          <button
-            onClick={() => setShowTryEval(true)}
-            className="hidden sm:flex items-center gap-1.5 text-xs text-slate-500 hover:text-indigo-700 border border-slate-200 rounded-lg px-3 py-1.5 hover:bg-indigo-50 hover:border-indigo-300 transition-colors"
-            title="Export endpoint config to TryEval"
-          >
-            <div className="w-4 h-4 rounded bg-indigo-600 flex items-center justify-center text-white text-[9px] font-bold">T</div>
-            TryEval
-          </button>
+            {/* TryEval */}
+            <button onClick={() => setShowTryEval(true)}
+              className="flex items-center gap-1.5 h-8 px-3 text-[12px] font-medium text-[var(--text-2)] border border-[var(--border)] rounded-lg hover:text-[var(--text)] hover:border-[var(--border-hi)] hover:bg-[var(--bg-card)] transition-all">
+              <div className="w-3.5 h-3.5 rounded-sm bg-[var(--accent)] flex items-center justify-center text-white text-[8px] font-bold shrink-0">T</div>
+              TryEval
+            </button>
+          </div>
 
-          <button
-            onClick={() => setShowSettings(true)}
-            className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-800 border border-slate-200 rounded-lg px-3 py-1.5 hover:bg-slate-50 transition-colors"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <div className="w-px h-4 bg-[var(--border)] mx-1.5 hidden sm:block" />
+          <ThemeToggle />
+          <div className="w-px h-4 bg-[var(--border)] mx-1.5" />
+
+          {/* Settings */}
+          <button onClick={() => setShowSettings(true)}
+            className={`h-8 px-3 flex items-center gap-1.5 text-[12px] font-medium rounded-lg border transition-all ${
+              settings.openrouterKey
+                ? "text-[var(--text-2)] border-[var(--border)] hover:text-[var(--text)] hover:border-[var(--border-hi)] hover:bg-[var(--bg-card)]"
+                : "text-red-500 border-red-500/30 hover:bg-red-500/10"
+            }`}>
+            <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
-            <span className="text-slate-500">Settings</span>
+            {settings.openrouterKey ? "Settings" : "Add key"}
           </button>
         </div>
       </header>
@@ -199,57 +225,80 @@ export default function DemoPage({ params }: { params: Promise<{ demo: string }>
       {/* ── Body ── */}
       <div className="flex flex-1 overflow-hidden">
         <div className="flex flex-col flex-1 overflow-hidden">
-          <main className="flex-1 overflow-y-auto px-4 md:px-6 py-6">
+          <main className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-6">
             {empty ? (
-              <div className="max-w-2xl mx-auto">
-                <div className="text-center mb-8 pt-8">
-                  <div
-                    className="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 shadow-lg"
-                    style={{ backgroundColor: primaryHex(config.primaryColor) }}
-                  >
-                    {config.icon}
-                  </div>
-                  <h2 className="text-xl font-semibold text-slate-800 mb-1.5">{config.shortTitle}</h2>
-                  <p className="text-[11px] text-slate-400">{config.subtitle}</p>
-                </div>
+              /* ── Empty state ── */
+              <div className="max-w-[600px] mx-auto flex flex-col items-center text-center pt-8 overflow-hidden">
+                {/* Identity pill */}
+                <span
+                  className="inline-flex items-center gap-1.5 text-[11px] font-medium rounded-full px-3 py-1 mb-5 border"
+                  style={{
+                    borderColor: `${accent}40`,
+                    background: `${accent}12`,
+                    color: accent,
+                  }}
+                >
+                  <span>{config.icon}</span>
+                  <span>{config.shortTitle}</span>
+                </span>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Headline */}
+                <h1 className="text-lg sm:text-2xl font-bold text-[var(--text)] leading-tight tracking-tight mb-2 w-full break-words px-1">
+                  {config.inputPlaceholder.replace("…", "").replace("...", "")}
+                </h1>
+                <p className="text-[13px] text-[var(--text-3)] mb-8 max-w-sm w-full px-1">
+                  Every answer cites its source. Refuses when not in corpus.
+                </p>
+
+                {/* Suggestion cards — left accent strip style from Stitch */}
+                <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-2 text-left mb-5">
                   {config.suggestedQuestions.map(({ q, icon }) => (
                     <button
                       key={q}
                       onClick={() => send(q)}
-                      className="flex items-start gap-3 text-left bg-white border border-slate-200 rounded-xl px-4 py-3.5 hover:border-indigo-300 hover:bg-indigo-50 hover:shadow-md transition-all group"
+                      className="group relative grid items-start bg-[var(--bg-card)] border border-[var(--border)] rounded-lg px-3 py-3 hover:border-[var(--border-hi)] hover:bg-[var(--bg-surface)] transition-all duration-150 text-left w-full overflow-hidden"
+                      style={{ gridTemplateColumns: "20px 1fr", gap: "10px" }}
                     >
-                      <span className="text-base mt-0.5 shrink-0">{icon}</span>
-                      <span className="text-sm text-slate-700 group-hover:text-indigo-700 leading-snug">{q}</span>
+                      {/* Accent left strip */}
+                      <div
+                        className="absolute left-0 top-0 bottom-0 w-0.5"
+                        style={{ backgroundColor: accent }}
+                      />
+                      <span className="text-sm mt-0.5 ml-1">{icon}</span>
+                      <p className="text-[13px] text-[var(--text-2)] group-hover:text-[var(--text)] leading-snug transition-colors" style={{ overflowWrap: "break-word", wordBreak: "break-word", minWidth: 0 }}>
+                        {q}
+                      </p>
                     </button>
                   ))}
                 </div>
 
+                {/* About corpus */}
                 {config.about && (
                   <div
-                    className="mt-6 pl-4 py-3 pr-4 rounded-r-xl"
+                    className="w-full text-left rounded-r-lg px-4 py-3"
                     style={{
-                      borderLeft: `3px solid ${primaryHex(config.primaryColor)}`,
-                      background: `${primaryHex(config.primaryColor)}0d`,
+                      borderLeft: `2px solid ${accent}`,
+                      background: `${accent}08`,
                     }}
                   >
-                    <p className="text-[11px] font-semibold mb-1" style={{ color: primaryHex(config.primaryColor) }}>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.08em] mb-1.5"
+                      style={{ color: accent }}>
                       What this covers
                     </p>
-                    <p className="text-[13px] text-slate-600 leading-relaxed">{config.about}</p>
+                    <p className="text-[12px] text-[var(--text-2)] leading-relaxed break-words">{config.about}</p>
                   </div>
                 )}
-
               </div>
             ) : (
-              <div className="max-w-2xl mx-auto space-y-6">
+              /* ── Chat ── */
+              <div className="max-w-[640px] mx-auto space-y-5">
                 {messages.map(m => (
                   <MessageBubble
                     key={m.id}
                     message={m}
                     config={config}
-                    onShowSources={toggleSources}
+                    accent={accent}
+                    onShowSources={id => setActiveSources(prev => prev === id ? null : id)}
                     activeSources={activeSources}
                   />
                 ))}
@@ -258,40 +307,38 @@ export default function DemoPage({ params }: { params: Promise<{ demo: string }>
             )}
           </main>
 
-          {/* ── Input ── */}
-          <div className="border-t border-slate-200 bg-white px-4 md:px-6 py-3.5 shrink-0">
-            <div className="max-w-2xl mx-auto">
-              <div className="flex items-center gap-1.5 mb-2.5 flex-wrap">
-                {([
-                  { id: "hybrid",  label: "Hybrid",  desc: "Dense + BM25 → RRF fusion" },
-                  { id: "vanilla", label: "RAG only", desc: "Dense vector search only" },
-                  { id: "bm25",    label: "BM25",     desc: "Full-text search only" },
-                  { id: "hyde",    label: "HyDE",     desc: "Hypothetical doc → embed → retrieve" },
-                ] as const).map(m => (
-                  <button
-                    key={m.id}
-                    title={m.desc}
-                    onClick={() => setMode(m.id)}
-                    className={`px-2.5 py-1 text-[11px] font-medium rounded-lg border transition-colors ${
-                      mode === m.id
-                        ? "bg-indigo-600 text-white border-indigo-600"
-                        : "bg-white text-slate-500 border-slate-200 hover:border-indigo-300 hover:text-indigo-600"
-                    }`}
-                  >
-                    {m.label}
-                  </button>
-                ))}
-                <span className="text-[10px] text-slate-400 ml-0.5 hidden sm:inline">
-                  {mode === "hybrid"  && "Dense + BM25 → RRF fusion"}
-                  {mode === "vanilla" && "Dense vector search only"}
-                  {mode === "bm25"    && "BM25 full-text only"}
-                  {mode === "hyde"    && "Generate hypothetical doc → embed → retrieve"}
+          {/* ── Input bar ── */}
+          <div className="px-4 py-3 border-t border-[var(--border)] bg-[var(--bg)] shrink-0">
+            <div className="max-w-[640px] mx-auto">
+
+              {/* Mode segmented pill control */}
+              <div className="flex items-center gap-2 mb-2">
+                <div className="flex items-center gap-0.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-full p-0.5">
+                  {MODES.map(m => (
+                    <button
+                      key={m.id}
+                      title={m.desc}
+                      onClick={() => setMode(m.id)}
+                      className={`px-3 py-1 text-[11px] font-medium rounded-full transition-all duration-150 ${
+                        mode === m.id
+                          ? "bg-[var(--text)] text-[var(--bg)] shadow-sm"
+                          : "text-[var(--text-3)] hover:text-[var(--text-2)]"
+                      }`}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+                <span className="text-[10px] text-[var(--text-4)] hidden sm:inline">
+                  {MODES.find(m => m.id === mode)?.desc}
                 </span>
               </div>
-              <div className="flex gap-2 items-end bg-white border border-slate-200 rounded-2xl px-4 py-2.5 shadow-sm focus-within:border-indigo-400 focus-within:ring-1 focus-within:ring-indigo-400 transition-all">
+
+              {/* Input box */}
+              <div className="flex items-end gap-2 bg-[var(--bg-input)] border border-[var(--border)] rounded-xl px-4 py-3 transition-all focus-within:border-[var(--border-hi)]">
                 <textarea
                   ref={inputRef}
-                  className="flex-1 resize-none text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none bg-transparent min-h-[24px] max-h-32"
+                  className="flex-1 resize-none text-[14px] text-[var(--text)] placeholder:text-[var(--text-3)] focus:outline-none bg-transparent min-h-[22px] max-h-32"
                   placeholder={config.inputPlaceholder}
                   rows={1}
                   value={input}
@@ -300,89 +347,52 @@ export default function DemoPage({ params }: { params: Promise<{ demo: string }>
                   disabled={loading}
                 />
                 <button
-                  onClick={() => send(input)}
-                  disabled={!input.trim() || loading}
-                  className="w-8 h-8 shrink-0 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 text-white disabled:text-slate-400 flex items-center justify-center transition-colors"
-                  aria-label="Send"
+                  onClick={() => {
+                    if (loading && abortRef.current) { abortRef.current.abort(); return }
+                    send(input)
+                  }}
+                  disabled={!input.trim() && !loading}
+                  className="w-7 h-7 shrink-0 rounded-full flex items-center justify-center transition-all disabled:opacity-30"
+                  style={{ backgroundColor: accent }}
+                  aria-label={loading ? "Stop" : "Send"}
                 >
                   {loading ? (
-                    <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+                    <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 24 24">
+                      <rect x="6" y="6" width="12" height="12" rx="2" />
                     </svg>
                   ) : (
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
                     </svg>
                   )}
                 </button>
               </div>
-              <p className="text-center text-[10px] text-slate-400 mt-1.5">
-                Enter to send · Shift+Enter for newline
+
+              <p className="text-center text-[10px] text-[var(--text-4)] mt-1.5">
+                Enter ↵ to send · Shift+Enter for newline
               </p>
             </div>
           </div>
         </div>
 
-        {/* ── Sources panel ── */}
+        {/* ── Sources panel (desktop) ── */}
         {activeResponse && (
-          <div className="hidden md:flex w-80 lg:w-96 shrink-0 border-l border-slate-200 flex-col overflow-hidden">
+          <div className="hidden md:flex w-80 lg:w-96 shrink-0 border-l border-[var(--border)] flex-col overflow-hidden bg-[var(--bg)]">
             <ChunksPanel
               chunks={activeResponse.retrieved_chunks}
               config={config}
+              accent={accent}
               onClose={() => setActiveSources(null)}
             />
           </div>
         )}
       </div>
 
-      {showSettings && (
-        <SettingsPanel
-          settings={settings}
-          onSave={handleSettings}
-          onClose={() => setShowSettings(false)}
-        />
-      )}
-
-      {showTryEval && (
-        <TryEvalExportModal
-          demo={demo}
-          config={config}
-          settings={settings}
-          mode={mode}
-          onClose={() => setShowTryEval(false)}
-        />
-      )}
-
-      {showCorpus && (
-        <CorpusModal
-          demo={demo}
-          config={config}
-          onClose={() => setShowCorpus(false)}
-        />
-      )}
-
-      {showDataset && (
-        <DatasetModal
-          demo={demo}
-          config={config}
-          onClose={() => setShowDataset(false)}
-        />
-      )}
+      {/* Modals */}
+      {showSettings  && <SettingsPanel settings={settings} onSave={s => { setSettings(s); saveSettings(s) }} onClose={() => setShowSettings(false)} />}
+      {showTryEval   && <TryEvalExportModal demo={demo} config={config} settings={settings} mode={mode} onClose={() => setShowTryEval(false)} />}
+      {showCorpus    && <CorpusModal demo={demo} config={config} onClose={() => setShowCorpus(false)} />}
+      {showDataset   && <DatasetModal demo={demo} config={config} onClose={() => setShowDataset(false)} />}
     </div>
   )
-}
-
-/** Map Tailwind color name to a hex for inline style (avoids purging dynamic class names) */
-function primaryHex(color: string): string {
-  const map: Record<string, string> = {
-    indigo:  "#4f46e5",
-    teal:    "#0d9488",
-    emerald: "#059669",
-    sky:     "#0284c7",
-    amber:   "#d97706",
-    violet:  "#7c3aed",
-    rose:    "#e11d48",
-  }
-  return map[color] ?? "#4f46e5"
 }

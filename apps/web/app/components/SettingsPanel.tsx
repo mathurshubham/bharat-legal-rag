@@ -17,12 +17,12 @@ function Field({
   return (
     <div className="space-y-1.5">
       <div>
-        <label className="text-sm font-medium text-slate-700">{label}</label>
-        {hint && <p className="text-[11px] text-slate-400 mt-0.5">{hint}</p>}
+        <label className="text-[13px] font-medium text-[var(--text)]">{label}</label>
+        {hint && <p className="text-[11px] text-[var(--text-3)] mt-0.5">{hint}</p>}
       </div>
       <input
         type={type}
-        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 focus:bg-white transition-all"
+        className="w-full rounded-lg border border-[var(--border-hi)] bg-[var(--bg-input)] px-3.5 py-2.5 text-[13px] text-[var(--text)] placeholder:text-[var(--text-3)] focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]/30 transition-all"
         placeholder={placeholder}
         value={value}
         onChange={e => onChange(e.target.value)}
@@ -36,19 +36,21 @@ export function SettingsPanel({ settings, onSave, onClose }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+      <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden"
+        style={{ boxShadow: "0 25px 50px rgba(0,0,0,0.5)" }}>
+
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
           <div>
-            <h2 className="text-base font-semibold text-slate-900">Settings</h2>
-            <p className="text-[11px] text-slate-400 mt-0.5">Keys sent as headers only — never stored server-side</p>
+            <h2 className="text-[14px] font-semibold text-[var(--text)]">Settings</h2>
+            <p className="text-[11px] text-[var(--text-3)] mt-0.5">Keys sent as headers only — never stored server-side</p>
           </div>
           <button
             onClick={onClose}
-            className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-[var(--text-3)] hover:text-[var(--text)] hover:bg-[var(--bg-card)] transition-colors"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -57,7 +59,7 @@ export function SettingsPanel({ settings, onSave, onClose }: Props) {
         </div>
 
         {/* Body */}
-        <div className="px-6 py-5 space-y-4">
+        <div className="px-5 py-5 space-y-4">
           <Field
             label="OpenRouter API Key"
             hint="Optional · overrides the server default key"
@@ -66,8 +68,8 @@ export function SettingsPanel({ settings, onSave, onClose }: Props) {
             value={draft.openrouterKey}
             onChange={v => setDraft(d => ({ ...d, openrouterKey: v }))}
           />
-          <div className="border-t border-slate-100 pt-4 space-y-4">
-            <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wide">
+          <div className="border-t border-[var(--border)] pt-4 space-y-4">
+            <p className="text-[10px] font-semibold text-[var(--text-4)] uppercase tracking-wide">
               Cloudflare AI Gateway — optional
             </p>
             <Field
@@ -86,17 +88,16 @@ export function SettingsPanel({ settings, onSave, onClose }: Props) {
         </div>
 
         {/* Footer */}
-        <div className="flex gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50">
+        <div className="flex gap-2.5 px-5 py-4 border-t border-[var(--border)] bg-[var(--bg-card)]">
           <button
             onClick={onClose}
-            className="flex-1 px-4 py-2.5 text-sm rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors"
+            className="flex-1 px-4 py-2.5 text-[13px] font-medium rounded-lg border border-[var(--border)] text-[var(--text-2)] hover:text-[var(--text)] hover:border-[var(--border-hi)] hover:bg-[var(--bg-surface)] transition-all"
           >
             Cancel
           </button>
           <button
             onClick={() => { onSave(draft); onClose() }}
-            disabled={false}
-            className="flex-1 px-4 py-2.5 text-sm rounded-xl bg-indigo-600 text-white font-medium hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="flex-1 px-4 py-2.5 text-[13px] font-medium rounded-lg bg-[var(--accent)] text-white hover:opacity-90 transition-all"
           >
             Save
           </button>

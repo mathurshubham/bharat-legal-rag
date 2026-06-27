@@ -22,6 +22,13 @@ const MODE_LABELS: Record<RetrievalMode, string> = {
   hyde:    "HyDE",
 }
 
+const MODE_DESCS: Record<RetrievalMode, string> = {
+  hybrid:  "Dense + BM25 → RRF fusion",
+  vanilla: "Dense vector search only",
+  bm25:    "Full-text search only",
+  hyde:    "Hypothetical doc → embed → retrieve",
+}
+
 function buildUrl(demo: string, settings: Settings, mode: RetrievalMode): string {
   const params = new URLSearchParams({ mode, rerank: "true" })
   if (settings.cfAccountId) params.set("cf_account_id", settings.cfAccountId)
@@ -33,15 +40,11 @@ function buildHeaderPairs(settings: Settings): Array<{ key: string; value: strin
   const pairs: Array<{ key: string; value: string }> = [
     { key: "Content-Type", value: "application/json" },
   ]
-  if (settings.openrouterKey) {
-    pairs.push({ key: "X-OpenRouter-Key", value: settings.openrouterKey })
-  }
+  if (settings.openrouterKey) pairs.push({ key: "X-OpenRouter-Key", value: settings.openrouterKey })
   return pairs
 }
 
-function CopyField({
-  label, value, mono = false, rows = 1,
-}: { label: string; value: string; mono?: boolean; rows?: number }) {
+function CopyField({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
   const [copied, setCopied] = useState(false)
   function copy() {
     navigator.clipboard.writeText(value)
@@ -51,40 +54,38 @@ function CopyField({
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between">
-        <label className="text-xs font-medium text-slate-600 uppercase tracking-wide">{label}</label>
-        <button
-          onClick={copy}
-          className={`flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md transition-colors ${
-            copied ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700"
-          }`}
-        >
+        <label className="text-[10px] font-semibold text-[var(--text-2)] uppercase tracking-wide">{label}</label>
+        <button onClick={copy}
+          className={`text-[11px] font-medium px-2 py-0.5 rounded border transition-all ${
+            copied
+              ? "bg-green-500/15 text-green-600 border-green-500/30 dark:text-green-400"
+              : "bg-[var(--bg-card)] border-[var(--border)] text-[var(--text-2)] hover:text-[var(--text)] hover:border-[var(--border-hi)]"
+          }`}>
           {copied ? "Copied" : "Copy"}
         </button>
       </div>
-      {rows > 1 ? (
-        <textarea
-          readOnly value={value} rows={rows}
-          className={`w-full rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-xs leading-relaxed focus:outline-none resize-none ${mono ? "font-mono text-slate-700" : "text-slate-800"}`}
-        />
-      ) : (
-        <div className={`w-full rounded-lg bg-slate-50 border border-slate-200 px-3 py-2 text-xs leading-relaxed break-all select-all ${mono ? "font-mono text-slate-700" : "text-slate-800"}`}>
-          {value}
-        </div>
-      )}
+      <div
+        onClick={copy}
+        className={`w-full rounded-lg bg-[var(--bg-input)] border border-[var(--border)] px-3 py-2 text-[12px] leading-relaxed break-all select-all cursor-pointer hover:border-[var(--border-hi)] transition-colors ${
+          mono ? "font-mono text-[var(--text-2)]" : "text-[var(--text-2)]"
+        }`}
+      >
+        {value || <span className="text-[var(--text-4)]">—</span>}
+      </div>
     </div>
   )
 }
 
-export function TryEvalExportModal({ demo, config, settings, mode, onClose }: Props) {
+export function TryEvalExportModal({ demo, config, settings, mode: initialMode, onClose }: Props) {
   const [allCopied, setAllCopied]                 = useState(false)
   const [unfilterVisibility, setUnfilterVisibility] = useState(false)
+  const [mode, setMode]                           = useState<RetrievalMode>(initialMode)
 
   const url         = buildUrl(demo, settings, mode)
   const headerPairs = buildHeaderPairs(settings)
   const visSuffix   = unfilterVisibility ? " — visibility unfiltered" : ""
   const name        = `${config.shortTitle} — ${MODE_LABELS[mode]}${visSuffix}`
 
-  // TryEval uses ${PROMPT} and ${RESULT} as template variables
   const inputTemplate  = unfilterVisibility
     ? '{"q": "${PROMPT}", "visibility": ["public", "internal", "confidential"]}'
     : '{"q": "${PROMPT}"}'
@@ -110,19 +111,23 @@ export function TryEvalExportModal({ demo, config, settings, mode, onClose }: Pr
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
+      <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden"
+        style={{ boxShadow: "0 25px 50px rgba(0,0,0,0.5)" }}>
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)] shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center text-white text-xs font-bold">T</div>
+            <div className="w-7 h-7 rounded-lg bg-[var(--accent)] flex items-center justify-center text-white text-xs font-bold">T</div>
             <div>
-              <h2 className="text-sm font-semibold text-slate-900">Export to TryEval</h2>
-              <p className="text-[11px] text-slate-400 mt-0.5">Copy fields into the Create Endpoint form</p>
+              <h2 className="text-[14px] font-semibold text-[var(--text)]">Export to TryEval</h2>
+              <p className="text-[11px] text-[var(--text-3)] mt-0.5">Copy fields into the Create Endpoint form</p>
             </div>
           </div>
-          <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 transition-colors">
+          <button onClick={onClose}
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-[var(--text-3)] hover:text-[var(--text)] hover:bg-[var(--bg-card)] transition-colors">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -130,19 +135,34 @@ export function TryEvalExportModal({ demo, config, settings, mode, onClose }: Pr
         </div>
 
         <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
-          <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-200 rounded-xl px-3.5 py-2.5">
-            <span className="text-xs text-indigo-700">
-              Exporting config for <strong>{MODE_LABELS[mode]}</strong> mode on <strong>{config.shortTitle}</strong>.
-            </span>
+
+          {/* Mode picker */}
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-card)] p-3">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-[var(--text-4)] mb-2.5">
+              Retrieval mode
+            </p>
+            <div className="grid grid-cols-2 gap-1.5">
+              {(Object.keys(MODE_LABELS) as RetrievalMode[]).map(m => (
+                <button key={m} onClick={() => setMode(m)}
+                  className="flex flex-col items-start px-3 py-2 rounded-lg border text-left transition-all"
+                  style={mode === m
+                    ? { background: "var(--accent)", borderColor: "var(--accent)", color: "#fff" }
+                    : { background: "var(--bg-input)", borderColor: "var(--border)", color: "var(--text-2)" }
+                  }>
+                  <span className="text-[12px] font-semibold">{MODE_LABELS[m]}</span>
+                  <span className="text-[10px] mt-0.5 opacity-60">{MODE_DESCS[m]}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
           <CopyField label="Name" value={name} />
           <CopyField label="URL" value={url} mono />
 
-          {/* Headers — one row per header, matching TryEval's "Add Header" key-value UI */}
+          {/* Headers */}
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-slate-600 uppercase tracking-wide">
-              Headers <span className="normal-case font-normal text-slate-400">(add one at a time in TryEval)</span>
+            <label className="text-[10px] font-semibold text-[var(--text-2)] uppercase tracking-wide">
+              Headers <span className="normal-case font-normal text-[var(--text-3)]">(add one at a time in TryEval)</span>
             </label>
             <div className="space-y-2">
               {headerPairs.map(h => (
@@ -162,17 +182,15 @@ export function TryEvalExportModal({ demo, config, settings, mode, onClose }: Pr
           <CopyField label="Input Template" value={inputTemplate} mono />
           <CopyField label="Output Template" value={outputTemplate} mono />
 
-          <label className="flex items-start gap-2.5 text-[11px] text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 cursor-pointer hover:bg-slate-100 transition-colors">
-            <input
-              type="checkbox"
-              checked={unfilterVisibility}
+          {/* Visibility bypass */}
+          <label className="flex items-start gap-2.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-lg px-3 py-2.5 cursor-pointer hover:border-[var(--border-hi)] transition-colors">
+            <input type="checkbox" checked={unfilterVisibility}
               onChange={e => setUnfilterVisibility(e.target.checked)}
-              className="mt-0.5"
-            />
+              className="mt-0.5" style={{ accentColor: "var(--accent)" }} />
             <span>
-              <strong className="text-slate-800">Bypass visibility filter</strong>
-              <span className="block text-slate-500 mt-0.5">
-                Includes <code className="font-mono text-[10px]">internal</code> and <code className="font-mono text-[10px]">confidential</code> docs in retrieval. Use to demonstrate the leak failure mode in TryEval — expect refusal/confidentiality rubrics to drop.
+              <strong className="text-[12px] font-semibold text-[var(--text)]">Bypass visibility filter</strong>
+              <span className="block text-[11px] text-[var(--text-3)] mt-0.5">
+                Surfaces <code className="font-mono text-[10px] bg-[var(--bg-input)] px-1 py-0.5 rounded">internal</code> and <code className="font-mono text-[10px] bg-[var(--bg-input)] px-1 py-0.5 rounded">confidential</code> docs. Use to test the leak failure mode in TryEval.
               </span>
             </span>
           </label>
@@ -183,20 +201,25 @@ export function TryEvalExportModal({ demo, config, settings, mode, onClose }: Pr
           </div>
 
           {!settings.openrouterKey && (
-            <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-              No OpenRouter key set — add it in Settings first so it is included in the headers.
-            </p>
+            <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2">
+              <svg className="w-3.5 h-3.5 text-amber-500 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+              </svg>
+              <p className="text-[11px] text-amber-500">No OpenRouter key set — add it in Settings first.</p>
+            </div>
           )}
         </div>
 
-        <div className="px-5 py-3.5 border-t border-slate-100 bg-slate-50 shrink-0 flex items-center justify-between gap-3">
-          <a href="https://www.tryeval.com" target="_blank" rel="noopener noreferrer" className="text-[11px] text-indigo-600 hover:underline">
+        {/* Footer */}
+        <div className="px-5 py-3.5 border-t border-[var(--border)] bg-[var(--bg-card)] shrink-0 flex items-center justify-between gap-3">
+          <a href="https://www.tryeval.com" target="_blank" rel="noopener noreferrer"
+            className="text-[11px] text-[var(--accent)] hover:underline">
             Open TryEval →
           </a>
-          <button
-            onClick={copyAll}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${allCopied ? "bg-green-600 text-white" : "bg-indigo-600 text-white hover:bg-indigo-700"}`}
-          >
+          <button onClick={copyAll}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-medium transition-all ${
+              allCopied ? "bg-green-500 text-white" : "bg-[var(--accent)] text-white hover:opacity-90"
+            }`}>
             {allCopied ? "All copied!" : "Copy all fields"}
           </button>
         </div>

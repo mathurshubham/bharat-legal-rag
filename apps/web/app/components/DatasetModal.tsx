@@ -19,26 +19,43 @@ const ORACLE_LABELS: Record<OracleCol, string> = {
 }
 
 const ORACLE_HINTS: Record<OracleCol, string> = {
-  expected_answer:     "Ideal answer text — use with LLM-judge scoring",
+  expected_answer:     "Ideal answer — for LLM-judge scoring",
   expected_citations:  "Section refs that must appear in citations[]",
   expected_assertions: "Machine-checkable pass/fail flags",
 }
 
-const CATEGORY_COLORS: Record<string, string> = {
-  retrieval:      "bg-blue-100 text-blue-700 border-blue-200",
-  refusal:        "bg-amber-100 text-amber-700 border-amber-200",
-  guard:          "bg-orange-100 text-orange-700 border-orange-200",
-  edge:           "bg-purple-100 text-purple-700 border-purple-200",
-  leak:           "bg-red-100 text-red-700 border-red-200",
-  freshness:      "bg-teal-100 text-teal-700 border-teal-200",
-  conflict:       "bg-rose-100 text-rose-700 border-rose-200",
-  confidentiality:"bg-slate-100 text-slate-700 border-slate-200",
-  tone:           "bg-green-100 text-green-700 border-green-200",
-  escalation:     "bg-pink-100 text-pink-700 border-pink-200",
+// Two palettes: light = pastel tints, dark = deep tints
+const CATEGORY_LIGHT: Record<string, { bg: string; text: string; border: string }> = {
+  retrieval:       { bg: "#dbeafe", text: "#1e40af", border: "#93c5fd" },
+  refusal:         { bg: "#fef3c7", text: "#92400e", border: "#fcd34d" },
+  guard:           { bg: "#ffedd5", text: "#9a3412", border: "#fdba74" },
+  edge:            { bg: "#ede9fe", text: "#5b21b6", border: "#c4b5fd" },
+  leak:            { bg: "#fee2e2", text: "#991b1b", border: "#fca5a5" },
+  freshness:       { bg: "#ccfbf1", text: "#115e59", border: "#5eead4" },
+  conflict:        { bg: "#ffe4e6", text: "#9f1239", border: "#fda4af" },
+  confidentiality: { bg: "#f5f5f4", text: "#44403c", border: "#d6d3d1" },
+  tone:            { bg: "#dcfce7", text: "#14532d", border: "#86efac" },
+  escalation:      { bg: "#fce7f3", text: "#9d174d", border: "#f9a8d4" },
 }
 
-function categoryClass(cat: string) {
-  return CATEGORY_COLORS[cat] ?? "bg-slate-100 text-slate-600 border-slate-200"
+const CATEGORY_DARK: Record<string, { bg: string; text: string; border: string }> = {
+  retrieval:       { bg: "#1e3a5f", text: "#93c5fd", border: "#1d4ed8" },
+  refusal:         { bg: "#451a03", text: "#fcd34d", border: "#b45309" },
+  guard:           { bg: "#431407", text: "#fb923c", border: "#c2410c" },
+  edge:            { bg: "#2e1065", text: "#c4b5fd", border: "#7c3aed" },
+  leak:            { bg: "#450a0a", text: "#fca5a5", border: "#dc2626" },
+  freshness:       { bg: "#042f2e", text: "#5eead4", border: "#0d9488" },
+  conflict:        { bg: "#4c0519", text: "#fda4af", border: "#e11d48" },
+  confidentiality: { bg: "#1c1917", text: "#a8a29e", border: "#57534e" },
+  tone:            { bg: "#052e16", text: "#86efac", border: "#16a34a" },
+  escalation:      { bg: "#500724", text: "#f9a8d4", border: "#db2777" },
+}
+
+function categoryStyle(cat: string, isDark: boolean) {
+  const map = isDark ? CATEGORY_DARK : CATEGORY_LIGHT
+  return map[cat] ?? (isDark
+    ? { bg: "#1c1c1c", text: "#a3a3a3", border: "#3f3f3f" }
+    : { bg: "#f5f5f5", text: "#525252", border: "#d4d4d4" })
 }
 
 function truncate(s: string, n: number) {
@@ -49,63 +66,60 @@ function downloadCSV(rows: DatasetRow[], oracleCol: OracleCol, demoId: string) {
   const BOM = "﻿"
   const esc = (v: string) => '"' + (v ?? "").replace(/"/g, '""') + '"'
   const header = ["eval_context", "input", "output", "expected_output"].map(esc).join(",")
-  const body = rows
-    .map(r => [r.eval_context, r.input, r.output, r[oracleCol]].map(esc).join(","))
-    .join("\n")
+  const body = rows.map(r => [r.eval_context, r.input, r.output, r[oracleCol]].map(esc).join(",")).join("\n")
   const csv = BOM + header + "\n" + body
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
   const url = URL.createObjectURL(blob)
   const a = document.createElement("a")
-  a.href = url
-  a.download = `${demoId}-dataset.csv`
-  a.click()
+  a.href = url; a.download = `${demoId}-dataset.csv`; a.click()
   URL.revokeObjectURL(url)
 }
 
 export function DatasetModal({ demo, config, onClose }: Props) {
-  const [dataset, setDataset]         = useState<DatasetInfo | null>(null)
-  const [loading, setLoading]         = useState(true)
-  const [selectedCats, setSelectedCats] = useState<Set<string>>(new Set())
-  const [oracleCol, setOracleCol]     = useState<OracleCol>("expected_answer")
+  const [dataset, setDataset]             = useState<DatasetInfo | null>(null)
+  const [loading, setLoading]             = useState(true)
+  const [selectedCats, setSelectedCats]   = useState<Set<string>>(new Set())
+  const [oracleCol, setOracleCol]         = useState<OracleCol>("expected_answer")
+  const [isDark, setIsDark]               = useState(false)
+
+  useEffect(() => {
+    const check = () => setIsDark(document.documentElement.getAttribute("data-theme") === "dark")
+    check()
+    const obs = new MutationObserver(check)
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] })
+    return () => obs.disconnect()
+  }, [])
 
   useEffect(() => {
     fetchDataset(demo).then(d => {
-      if (d) {
-        setDataset(d)
-        setSelectedCats(new Set(Object.keys(d.categories)))
-      }
+      if (d) { setDataset(d); setSelectedCats(new Set(Object.keys(d.categories))) }
       setLoading(false)
     })
   }, [demo])
 
-  const filteredRows = dataset
-    ? dataset.rows.filter(r => selectedCats.has(r.eval_context))
-    : []
-  const previewRows = filteredRows.slice(0, 10)
+  const filteredRows = dataset ? dataset.rows.filter(r => selectedCats.has(r.eval_context)) : []
+  const previewRows  = filteredRows.slice(0, 10)
 
   function toggleCat(cat: string) {
-    setSelectedCats(prev => {
-      const next = new Set(prev)
-      if (next.has(cat)) next.delete(cat)
-      else next.add(cat)
-      return next
-    })
+    setSelectedCats(prev => { const n = new Set(prev); n.has(cat) ? n.delete(cat) : n.add(cat); return n })
   }
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
+      <div className="bg-[var(--bg-surface)] border border-[var(--border)] rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden"
+        style={{ boxShadow: "0 25px 50px rgba(0,0,0,0.5)" }}>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)] shrink-0">
           <div>
-            <h2 className="text-sm font-semibold text-slate-900">Eval Dataset</h2>
-            <p className="text-[11px] text-slate-400 mt-0.5">{config.title}</p>
+            <h2 className="text-[14px] font-semibold text-[var(--text)]">Eval Dataset</h2>
+            <p className="text-[11px] text-[var(--text-3)] mt-0.5">{config.title}</p>
           </div>
-          <button onClick={onClose} className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 transition-colors">
+          <button onClick={onClose}
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-[var(--text-3)] hover:text-[var(--text)] hover:bg-[var(--bg-card)] transition-colors">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -116,50 +130,48 @@ export function DatasetModal({ demo, config, onClose }: Props) {
         <div className="overflow-y-auto flex-1 px-5 py-4 space-y-4">
           {loading ? (
             <div className="flex items-center justify-center py-12">
-              <div className="w-5 h-5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+              <div className="w-5 h-5 border border-[var(--border-hi)] border-t-[var(--accent)] rounded-full animate-spin" />
             </div>
           ) : !dataset ? (
-            <p className="text-sm text-slate-400 text-center py-8">No dataset found for this demo.</p>
+            <p className="text-[13px] text-[var(--text-3)] text-center py-8">No dataset found for this demo.</p>
           ) : (
             <>
-              {/* Stats row */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-[11px] font-medium text-slate-500 mr-1">{dataset.total} questions ·</span>
-                {Object.entries(dataset.categories).map(([cat, n]) => (
-                  <button
-                    key={cat}
-                    onClick={() => toggleCat(cat)}
-                    className={`text-[11px] font-medium px-2.5 py-1 rounded-full border transition-all ${
-                      selectedCats.has(cat)
-                        ? categoryClass(cat)
-                        : "bg-white text-slate-300 border-slate-200 line-through"
-                    }`}
-                  >
-                    {cat} {n}
-                  </button>
-                ))}
+              {/* Category filter pills */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[11px] text-[var(--text-3)] mr-1">{dataset.total} questions</span>
+                {Object.entries(dataset.categories).map(([cat, n]) => {
+                  const s = categoryStyle(cat, isDark)
+                  const active = selectedCats.has(cat)
+                  return (
+                    <button key={cat} onClick={() => toggleCat(cat)}
+                      className="text-[11px] font-medium px-2.5 py-1 rounded-full border transition-all"
+                      style={active
+                        ? { background: s.bg, color: s.text, borderColor: s.border }
+                        : { background: "transparent", color: "var(--text-4)", borderColor: "var(--border)", textDecoration: "line-through" }
+                      }>
+                      {cat} {n}
+                    </button>
+                  )
+                })}
               </div>
 
-              {/* Oracle column selector */}
-              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3.5">
-                <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-2.5">
+              {/* Oracle selector */}
+              <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-card)] p-3.5">
+                <p className="text-[10px] font-semibold text-[var(--text-4)] uppercase tracking-wide mb-3">
                   expected_output column in download
                 </p>
-                <div className="flex gap-2 flex-wrap">
+                <div className="flex gap-4 flex-wrap">
                   {(Object.keys(ORACLE_LABELS) as OracleCol[]).map(col => (
-                    <label key={col} className="flex items-start gap-2 cursor-pointer group">
-                      <input
-                        type="radio"
-                        name="oracle"
-                        checked={oracleCol === col}
+                    <label key={col} className="flex items-start gap-2 cursor-pointer">
+                      <input type="radio" name="oracle" checked={oracleCol === col}
                         onChange={() => setOracleCol(col)}
-                        className="mt-0.5 accent-indigo-600"
-                      />
+                        className="mt-0.5" style={{ accentColor: "var(--accent)" }} />
                       <span>
-                        <span className={`text-[12px] font-medium ${oracleCol === col ? "text-indigo-700" : "text-slate-600"}`}>
+                        <span className="text-[12px] font-medium"
+                          style={{ color: oracleCol === col ? "var(--accent-text, var(--accent))" : "var(--text-2)" }}>
                           {ORACLE_LABELS[col]}
                         </span>
-                        <span className="block text-[10px] text-slate-400 mt-0.5">{ORACLE_HINTS[col]}</span>
+                        <span className="block text-[10px] text-[var(--text-3)] mt-0.5">{ORACLE_HINTS[col]}</span>
                       </span>
                     </label>
                   ))}
@@ -168,37 +180,41 @@ export function DatasetModal({ demo, config, onClose }: Props) {
 
               {/* Preview table */}
               <div>
-                <p className="text-[11px] text-slate-400 mb-2">
+                <p className="text-[11px] text-[var(--text-4)] mb-2">
                   Showing {previewRows.length} of {filteredRows.length} rows
-                  {filteredRows.length !== dataset.total && ` (${dataset.total} total, filtered)`}
+                  {filteredRows.length !== dataset.total && ` (${dataset.total} total)`}
                 </p>
-                <div className="rounded-xl border border-slate-200 overflow-hidden">
+                <div className="rounded-lg border border-[var(--border)] overflow-hidden">
                   <table className="w-full text-[12px]">
-                    <thead className="bg-slate-50 border-b border-slate-200">
+                    <thead className="bg-[var(--bg-card)] border-b border-[var(--border)]">
                       <tr>
-                        <th className="text-left px-3 py-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wide w-28">Category</th>
-                        <th className="text-left px-3 py-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wide">Input</th>
-                        <th className="text-left px-3 py-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wide w-48">
+                        <th className="text-left px-3 py-2 text-[10px] font-semibold text-[var(--text-3)] uppercase tracking-wide w-28">Category</th>
+                        <th className="text-left px-3 py-2 text-[10px] font-semibold text-[var(--text-3)] uppercase tracking-wide">Input</th>
+                        <th className="text-left px-3 py-2 text-[10px] font-semibold text-[var(--text-3)] uppercase tracking-wide w-52">
                           expected_output
-                          <span className="ml-1 text-indigo-400 normal-case font-normal">({ORACLE_LABELS[oracleCol]})</span>
+                          <span className="ml-1 text-[var(--accent)] normal-case font-normal opacity-70">({ORACLE_LABELS[oracleCol]})</span>
                         </th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {previewRows.map((row, i) => (
-                        <tr key={i} className="hover:bg-slate-50 transition-colors">
-                          <td className="px-3 py-2.5">
-                            <span className={`inline-block text-[10px] px-2 py-0.5 rounded-full border font-medium ${categoryClass(row.eval_context)}`}>
-                              {row.eval_context}
-                            </span>
-                          </td>
-                          <td className="px-3 py-2.5 text-slate-700">{truncate(row.input, 70)}</td>
-                          <td className="px-3 py-2.5 text-slate-500 font-mono text-[11px]">{truncate(row[oracleCol], 55)}</td>
-                        </tr>
-                      ))}
+                    <tbody className="divide-y divide-[var(--border)]">
+                      {previewRows.map((row, i) => {
+                        const s = categoryStyle(row.eval_context, isDark)
+                        return (
+                          <tr key={i} className="hover:bg-[var(--bg-card)] transition-colors">
+                            <td className="px-3 py-2.5">
+                              <span className="inline-block text-[10px] px-2 py-0.5 rounded-full border font-medium"
+                                style={{ background: s.bg, color: s.text, borderColor: s.border }}>
+                                {row.eval_context}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2.5 text-[var(--text-2)]">{truncate(row.input, 70)}</td>
+                            <td className="px-3 py-2.5 text-[var(--text-3)] font-mono text-[11px]">{truncate(row[oracleCol], 55)}</td>
+                          </tr>
+                        )
+                      })}
                       {filteredRows.length === 0 && (
                         <tr>
-                          <td colSpan={3} className="px-3 py-6 text-center text-slate-400 text-[12px]">
+                          <td colSpan={3} className="px-3 py-6 text-center text-[var(--text-3)] text-[12px]">
                             No rows match the selected categories.
                           </td>
                         </tr>
@@ -212,19 +228,15 @@ export function DatasetModal({ demo, config, onClose }: Props) {
         </div>
 
         {/* Footer */}
-        <div className="px-5 py-3.5 border-t border-slate-100 bg-slate-50 shrink-0 flex items-center justify-between gap-3">
-          <a
-            href="https://www.tryeval.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-[11px] text-indigo-600 hover:underline"
-          >
+        <div className="px-5 py-3.5 border-t border-[var(--border)] bg-[var(--bg-card)] shrink-0 flex items-center justify-between gap-3">
+          <a href="https://www.tryeval.com" target="_blank" rel="noopener noreferrer"
+            className="text-[11px] text-[var(--accent)] hover:underline">
             Open TryEval →
           </a>
           <button
             onClick={() => dataset && downloadCSV(filteredRows, oracleCol, demo)}
             disabled={!dataset || filteredRows.length === 0}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-[13px] font-medium bg-[var(--accent)] text-white hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
