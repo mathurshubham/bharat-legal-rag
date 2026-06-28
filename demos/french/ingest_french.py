@@ -388,6 +388,73 @@ def board_of(doc_id: str) -> str:
     return "other"
 
 
+def level_of(doc_id: str) -> str:
+    """Pedagogical CEFR level inferred from doc_id."""
+    if doc_id.startswith("CBSE_9_"):
+        return "A1"
+    if doc_id.startswith("CBSE_10_"):
+        return "A2"
+    if doc_id.startswith("IB_DP_"):
+        return "B1-B2"
+    return "unknown"
+
+
+# ─── Chunk-type tagging (Iter 4) ──────────────────────────────────────────────
+
+# Each pattern matches against header_path (full breadcrumb). First match wins.
+# Priority order matters — exercise patterns must beat generic ones.
+_CHUNK_TYPE_PATTERNS: list[tuple[re.Pattern, str]] = [
+    (re.compile(r"À\s*TOI|^A\s*TOI|\bATOI\b", re.IGNORECASE), "exercise"),
+    (re.compile(r"^Activity\b|^Activité", re.IGNORECASE), "exercise"),
+    (re.compile(r"Questions\s+de\s+compréhension", re.IGNORECASE), "exercise"),
+    (re.compile(r"Production\s+(écrite|orale)", re.IGNORECASE), "exercise"),
+    (re.compile(r"Épreuve\s+orale", re.IGNORECASE), "exercise"),
+    (re.compile(r"\bBilan\b", re.IGNORECASE), "exercise"),
+    (re.compile(r"\bTest\b|Quiz", re.IGNORECASE), "exercise"),
+    (re.compile(r"je\s+révise|J'évalue|Auto-évaluation", re.IGNORECASE), "revision"),
+    (re.compile(r"Après l'unité", re.IGNORECASE), "revision"),
+    (re.compile(r"J'observe|Grammaire|Conjugue|Pronoms?|conditionnel|imparfait|passé|subjonctif|infinitif", re.IGNORECASE), "grammar"),
+    (re.compile(r"Vocabulaire|Vocabulary|Lexique", re.IGNORECASE), "vocab"),
+    (re.compile(r"^Lis\b|^Read\b|Lecture|Le plaisir de lire", re.IGNORECASE), "reading"),
+    (re.compile(r"Écoute|Compréhension orale", re.IGNORECASE), "listening"),
+    (re.compile(r"Dialogue|Conversation", re.IGNORECASE), "dialogue"),
+    (re.compile(r"Objectifs|Learning objectives", re.IGNORECASE), "objectives"),
+    (re.compile(r"Remue[\s-]m[eé]nages?|En plus|Recherche", re.IGNORECASE), "exploration"),
+    (re.compile(r"Culture|Tradition|Francophonie|Société", re.IGNORECASE), "culture"),
+    (re.compile(r"Recette|Cuisine", re.IGNORECASE), "culture"),
+]
+
+
+def chunk_type_of(header_path: str, body: str) -> str:
+    """Classify chunk by header path; fall back to body sniffing for ambiguous."""
+    for p, t in _CHUNK_TYPE_PATTERNS:
+        if p.search(header_path):
+            return t
+    # Body fallback
+    if re.search(r"^\s*(\d+\.|\d+\))", body, re.MULTILINE) and "complète" in body.lower():
+        return "exercise"
+    if re.search(r"^\|\s*\w+", body, re.MULTILINE):   # markdown table
+        return "vocab" if len(body) < 500 else "reading"
+    return "content"
+
+
+def skill_of(chunk_type: str) -> str:
+    """Map type → CEFR skill (reading/writing/listening/speaking/grammar/vocab)."""
+    return {
+        "grammar":   "grammar",
+        "vocab":     "vocab",
+        "reading":   "reading",
+        "listening": "listening",
+        "dialogue":  "speaking",
+        "exercise":  "mixed",
+        "revision":  "mixed",
+        "culture":   "reading",
+        "objectives": "meta",
+        "exploration": "reading",
+        "content":   "reading",
+    }.get(chunk_type, "mixed")
+
+
 def _aliases_for_section(section_ref: str, doc_id: str) -> str:
     """Generate retrieval-friendly aliases so queries using English terms
     (Chapter, Lesson, Grade, Class) still hit French-tagged chunks.
@@ -411,10 +478,13 @@ def _aliases_for_section(section_ref: str, doc_id: str) -> str:
 
 
 def contextualize(doc_title: str, chunk: Chunk, board: str, doc_id: str) -> str:
-    """Prepend doc_title + header_path + cross-vocab aliases before embedding."""
+    """Prepend doc_title + header_path + cross-vocab aliases + chunk-type before embedding."""
     aliases = _aliases_for_section(chunk.section_ref, doc_id)
     alias_part = f" — aliases: {aliases}" if aliases else ""
-    header = f"[{doc_title} — board:{board} — {chunk.header_path}{alias_part}]"
+    ctype = chunk_type_of(chunk.header_path, chunk.text)
+    level = level_of(doc_id)
+    type_part = f" — type:{ctype} level:{level}"
+    header = f"[{doc_title} — board:{board}{type_part} — {chunk.header_path}{alias_part}]"
     return f"{header}\n\n{chunk.text}"
 
 
@@ -446,10 +516,16 @@ def ingest_doc(conn: psycopg.Connection, doc_id: str, path: Path,
     print(f"  embedding {len(chunks)} chunks (contextualized)…")
     vecs = embed_doc(ctx_texts)
 
+    level = level_of(doc_id)
     rows = []
     for chunk, vec in zip(chunks, vecs):
+        ctype = chunk_type_of(chunk.header_path, chunk.text)
+        skill = skill_of(ctype)
         metadata = {
             "board": board,
+            "level": level,
+            "type": ctype,
+            "skill": skill,
             "header_path": chunk.header_path,
             "demo": DEMO_ID,
         }

@@ -55,6 +55,7 @@ class QueryRequest(BaseModel):
     history: list[Turn] = Field(default_factory=list)
     visibility: list[str] | None = None  # None → engine default (['public'])
     language_mode: str | None = None  # per-demo opt-in: "fr" | "en" | "bilingual"; ignored if prompt has no placeholder
+    output_mode: str | None = None  # per-demo opt-in: "student" | "teacher" | "lesson_plan" | "question_bank"
 
 
 class QueryResponse(BaseModel):
@@ -150,10 +151,14 @@ async def query(
     lang_mode = (req.language_mode or "bilingual").lower()
     if lang_mode not in ("fr", "en", "bilingual"):
         lang_mode = "bilingual"
+    out_mode = (req.output_mode or "student").lower()
+    if out_mode not in ("student", "teacher", "lesson_plan", "question_bank"):
+        out_mode = "student"
     system_msg = (
         system_tmpl
         .replace("{context}", context_str)
         .replace("{language_mode}", lang_mode)
+        .replace("{output_mode}", out_mode)
     )
 
     messages = [{"role": "system", "content": system_msg}]
