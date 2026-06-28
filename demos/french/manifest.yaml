@@ -1,0 +1,68 @@
+demo_id: french
+title: "Bonjour — Multi-board French Study Bot"
+description: "Grounded French study help across CBSE, IB, and other boards"
+
+# Doc ID convention: <BOARD>_<LEVEL>_<SERIES>[_<THEME>]
+# Boards seeded: CBSE (classes 9–10), IB DP (grades 11–12, themed)
+# Future: ICSE_<level>, IGCSE_<level>, STATE_<state>_<level>, ...
+
+doc_titles:
+  CBSE_9_ENTREJEUNES: "CBSE Class 9 — Entre Jeunes"
+  CBSE_10_ENTREJEUNES: "CBSE Class 10 — Entre Jeunes"
+  IB_DP_OXFORD_IDENTITES: "IB DP French B — Identités"
+  IB_DP_OXFORD_EXPERIENCES: "IB DP French B — Expériences"
+  IB_DP_OXFORD_INGENIOSITE: "IB DP French B — Ingéniosité humaine"
+  IB_DP_OXFORD_ORG_SOCIALE: "IB DP French B — Organisation sociale"
+  IB_DP_OXFORD_PARTAGE: "IB DP French B — Partage de la planète"
+
+doc_shorts:
+  CBSE_9_ENTREJEUNES: "EJ-9"
+  CBSE_10_ENTREJEUNES: "EJ-10"
+  IB_DP_OXFORD_IDENTITES: "IB-Identités"
+  IB_DP_OXFORD_EXPERIENCES: "IB-Expériences"
+  IB_DP_OXFORD_INGENIOSITE: "IB-Ingéniosité"
+  IB_DP_OXFORD_ORG_SOCIALE: "IB-OrgSoc"
+  IB_DP_OXFORD_PARTAGE: "IB-Planète"
+
+section:
+  patterns:
+    - "^(Unité\\s+\\d+)"
+    - "^(Leçon\\s+\\d+)"
+    - "^(Bilan\\s+\\d*)"
+    - "^(Théme\\s+\\d+|Thème\\s+\\d+)"
+    - "^([A-C])\\s+[A-ZÉÀÂÊ][^\\n]{4,60}$"
+  format_default: "{short} §{n}"
+  format_overrides: {}
+  normalizer_overrides: {}
+
+guard:
+  corpus_doc_id: null
+  ui_markers: []
+  ui_banner: ""
+
+refusal:
+  ui_markers:
+    - "cannot answer"
+    - "je ne peux pas répondre"
+    - "not in your indexed"
+    - "not in the indexed"
+    - "outside your"
+    - "outside the indexed"
+    - "not covered in the indexed"
+    - "check with your teacher"
+    - "consultez votre professeur"
+    - "not available in"
+  ui_banner: "This is outside your indexed French textbooks. Check with your teacher or another reference."
+
+doc_visibility:
+  CBSE_9_ENTREJEUNES: public
+  CBSE_10_ENTREJEUNES: public
+  IB_DP_OXFORD_IDENTITES: public
+  IB_DP_OXFORD_EXPERIENCES: public
+  IB_DP_OXFORD_INGENIOSITE: public
+  IB_DP_OXFORD_ORG_SOCIALE: public
+  IB_DP_OXFORD_PARTAGE: public
+
+prompts:
+  system_default_version: v1
+  hyde_path: prompts/hyde.txt

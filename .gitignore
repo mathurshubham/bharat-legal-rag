@@ -8,7 +8,11 @@ apps/api/app/__pycache__/
 apps/api/scripts/__pycache__/
 *.pyc
 *.pyo
-corpus/raw/
+# Raw corpus is excluded across all demos (large PDFs, JPGs, scraped artifacts).
+# Use leading **/ so the pattern matches inside any demo dir, not just root.
+**/corpus/raw/
+# Marker working directories (intermediate output, real .md sits at corpus/clean root)
+demos/*/corpus/clean/_marker_*/
 *.dump
 apps/api/.DS_Store
 apps/api/uv.lock

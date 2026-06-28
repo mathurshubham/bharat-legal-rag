@@ -23,6 +23,20 @@ from .embed import embed_query
 RRF_K = 60
 DEFAULT_VISIBILITY: tuple[str, ...] = ("public",)
 
+# ParadeDB / Tantivy Lucene-style special chars that must be escaped in BM25 queries
+_BM25_SPECIALS = set(r'+-&|!(){}[]^"~*?:\/' + "'")
+
+
+def _sanitize_bm25_query(q: str) -> str:
+    """Strip Lucene-special chars from a BM25 query string.
+
+    ParadeDB's @@@ parses queries with Lucene syntax; user-typed apostrophes,
+    quotes, slashes, etc. blow up the parser. We strip rather than escape so
+    French apostrophes like "l'éco-citoyenneté" turn into "l éco citoyenneté"
+    and still match tokenized content.
+    """
+    return "".join(" " if c in _BM25_SPECIALS else c for c in q).strip() or "*"
+
 
 def _load_hyde_prompt(demo_id: str) -> str:
     path = REPO_ROOT / "demos" / demo_id / "prompts" / "hyde.txt"
@@ -37,37 +51,65 @@ def _load_hyde_prompt(demo_id: str) -> str:
 
 async def _dense(
     conn: psycopg.AsyncConnection, vec: list[float], top_k: int, demo_id: str,
-    visibility: list[str],
+    visibility: list[str], board: str | None = None,
 ) -> list[dict]:
-    cur = await conn.execute(
-        """
-        SELECT id, doc_id, doc_title, section_ref, content, visibility,
-               1 - (embedding <=> %s::vector) AS score
-        FROM chunks
-        WHERE demo_id = %s AND visibility = ANY(%s)
-        ORDER BY embedding <=> %s::vector
-        LIMIT %s
-        """,
-        (vec, demo_id, visibility, vec, top_k),
-    )
+    if board:
+        cur = await conn.execute(
+            """
+            SELECT id, doc_id, doc_title, section_ref, content, visibility,
+                   1 - (embedding <=> %s::vector) AS score
+            FROM chunks
+            WHERE demo_id = %s AND visibility = ANY(%s) AND metadata->>'board' = %s
+            ORDER BY embedding <=> %s::vector
+            LIMIT %s
+            """,
+            (vec, demo_id, visibility, board, vec, top_k),
+        )
+    else:
+        cur = await conn.execute(
+            """
+            SELECT id, doc_id, doc_title, section_ref, content, visibility,
+                   1 - (embedding <=> %s::vector) AS score
+            FROM chunks
+            WHERE demo_id = %s AND visibility = ANY(%s)
+            ORDER BY embedding <=> %s::vector
+            LIMIT %s
+            """,
+            (vec, demo_id, visibility, vec, top_k),
+        )
     return await cur.fetchall()
 
 
 async def _bm25(
     conn: psycopg.AsyncConnection, query: str, top_k: int, demo_id: str,
-    visibility: list[str],
+    visibility: list[str], board: str | None = None,
 ) -> list[dict]:
-    cur = await conn.execute(
-        """
-        SELECT id, doc_id, doc_title, section_ref, content, visibility,
-               paradedb.score(id) AS score
-        FROM chunks
-        WHERE content @@@ %s AND demo_id = %s AND visibility = ANY(%s)
-        ORDER BY score DESC
-        LIMIT %s
-        """,
-        (query, demo_id, visibility, top_k),
-    )
+    query = _sanitize_bm25_query(query)
+    if board:
+        cur = await conn.execute(
+            """
+            SELECT id, doc_id, doc_title, section_ref, content, visibility,
+                   paradedb.score(id) AS score
+            FROM chunks
+            WHERE content @@@ %s AND demo_id = %s AND visibility = ANY(%s)
+              AND metadata->>'board' = %s
+            ORDER BY score DESC
+            LIMIT %s
+            """,
+            (query, demo_id, visibility, board, top_k),
+        )
+    else:
+        cur = await conn.execute(
+            """
+            SELECT id, doc_id, doc_title, section_ref, content, visibility,
+                   paradedb.score(id) AS score
+            FROM chunks
+            WHERE content @@@ %s AND demo_id = %s AND visibility = ANY(%s)
+            ORDER BY score DESC
+            LIMIT %s
+            """,
+            (query, demo_id, visibility, top_k),
+        )
     return await cur.fetchall()
 
 
@@ -105,8 +147,12 @@ async def retrieve(
     hyde_model: str | None = None,
     cf_account_id: str | None = None,
     cf_gateway_id: str | None = None,
+    board: str | None = None,
 ) -> list[dict]:
     vis = list(visibility) if visibility else list(DEFAULT_VISIBILITY)
+    # Normalize board: "all" / "" / None → no filter
+    if board and board.lower() in ("all", ""):
+        board = None
 
     pool = await get_pool()
     async with pool.connection() as conn:
@@ -114,16 +160,16 @@ async def retrieve(
 
         if mode == "vanilla":
             vec = embed_query([query])[0]
-            return await _dense(conn, vec, top_k, demo_id, vis)
+            return await _dense(conn, vec, top_k, demo_id, vis, board)
 
         if mode == "bm25":
-            return await _bm25(conn, query, top_k, demo_id, vis)
+            return await _bm25(conn, query, top_k, demo_id, vis, board)
 
         if mode == "hybrid":
             vec = embed_query([query])[0]
             dense_rows, bm25_rows = await asyncio.gather(
-                _dense(conn, vec, top_k, demo_id, vis),
-                _bm25(conn, query, top_k, demo_id, vis),
+                _dense(conn, vec, top_k, demo_id, vis, board),
+                _bm25(conn, query, top_k, demo_id, vis, board),
             )
             return _rrf(dense_rows, bm25_rows, top_k)
 
@@ -144,6 +190,6 @@ async def retrieve(
             )
             hypothetical_doc = result["text"].strip()
             vec = embed_query([hypothetical_doc])[0]
-            return await _dense(conn, vec, top_k, demo_id, vis)
+            return await _dense(conn, vec, top_k, demo_id, vis, board)
 
         raise ValueError(f"Unknown retrieval mode: {mode!r}")

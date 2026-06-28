@@ -1,0 +1,3 @@
+Write a short excerpt (2-4 sentences) from a French language textbook chapter that would directly answer the following question. Write only the textbook-style explanation in French, no preamble.
+
+Question: {query}

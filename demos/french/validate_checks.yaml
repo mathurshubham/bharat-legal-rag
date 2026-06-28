@@ -1,0 +1,33 @@
+# Smoke checks: each (doc_id, substring) confirms at least one chunk for that doc
+# contains the substring. section_ref: "*" matches any section under that doc_id.
+
+checks:
+  - doc_id: CBSE_9_ENTREJEUNES
+    section_ref: "*"
+    substring: "Bonjour"
+    description: "greeting vocab in CBSE class 9"
+
+  - doc_id: CBSE_9_ENTREJEUNES
+    section_ref: "*"
+    substring: "À toi"
+    description: "À toi exercises marker in CBSE class 9"
+
+  - doc_id: CBSE_10_ENTREJEUNES
+    section_ref: "*"
+    substring: "Leçon"
+    description: "lesson markers in CBSE class 10"
+
+  - doc_id: IB_DP_OXFORD_IDENTITES
+    section_ref: "*"
+    substring: "identité"
+    description: "identité in IB Identités theme"
+
+  - doc_id: IB_DP_OXFORD_EXPERIENCES
+    section_ref: "*"
+    substring: "voyage"
+    description: "voyage in IB Expériences theme"
+
+  - doc_id: IB_DP_OXFORD_PARTAGE
+    section_ref: "*"
+    substring: "environnement"
+    description: "environnement in IB Partage de la planète"

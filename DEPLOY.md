@@ -110,6 +110,18 @@ until sudo docker exec bharat-legal-rag-db-1 pg_isready -U legal -d legalrag 2>/
 
 Skip this step if the database already has data.
 
+> **How the dump was created (2026-06-28):** Dumped from local Docker container on Mac (macOS), transferred to Pi via SCP over SSH.
+>
+> ```bash
+> # On Mac — dump from local Docker container:
+> docker exec legal-rag-db-1 pg_dump -U legal -d legalrag -Fc -f /tmp/legalrag.dump
+> docker cp legal-rag-db-1:/tmp/legalrag.dump ./legalrag.dump
+>
+> # Transfer to Pi (pubkey auth — run ssh-copy-id first if not done):
+> scp -i ~/.ssh/id_ed25519 ./legalrag.dump \
+>   rpism@192.168.1.22:/home/rpism/Documents/projects/bharat-legal-rag/legalrag.dump
+> ```
+
 ```bash
 # Verify row count first — if this returns 4896 total, skip the restore:
 sudo docker exec bharat-legal-rag-db-1 psql -U legal -d legalrag \

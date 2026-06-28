@@ -16,6 +16,7 @@ const DEMO_META: Record<string, {
   insurance: { icon: "🛡",  accent: "#0d9488", accentBg: "#f0fdfa", accentBgDark: "#042f2e", tags: ["IRDAI", "Term Life", "Accident"] },
   health:    { icon: "⚕",  accent: "#059669", accentBg: "#f0fdf4", accentBgDark: "#052e16", tags: ["WHO", "Diabetes", "Malaria"] },
   education: { icon: "📚", accent: "#7c3aed", accentBg: "#f5f3ff", accentBgDark: "#2e1065", tags: ["History", "Economics", "Geography"] },
+  french:    { icon: "🇫🇷", accent: "#2563eb", accentBg: "#eff6ff", accentBgDark: "#172554", tags: ["CBSE 9–10", "IB DP", "Entre Jeunes"] },
   support:   { icon: "🎧", accent: "#0284c7", accentBg: "#f0f9ff", accentBgDark: "#082f49", tags: ["Billing", "SSO", "SLA"] },
 }
 

@@ -3,7 +3,7 @@
 import { use, useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import type { ChatMessage, Settings, Turn } from "@/lib/types"
-import { postQuery, type RetrievalMode } from "@/lib/api"
+import { postQuery, type RetrievalMode, type LanguageMode, type BoardFilter } from "@/lib/api"
 import type { DemoConfig } from "@/lib/demoConfig"
 import { MessageBubble } from "../components/MessageBubble"
 import { ChunksPanel } from "../components/ChunksPanel"
@@ -19,16 +19,36 @@ import insuranceConfig from "../../demos/insurance/web_config"
 import healthConfig    from "../../demos/health/web_config"
 import educationConfig from "../../demos/education/web_config"
 import supportConfig   from "../../demos/support/web_config"
+import frenchConfig    from "../../demos/french/web_config"
 
 const DEMO_CONFIGS: Record<string, DemoConfig> = {
   law: lawConfig, insurance: insuranceConfig,
   health: healthConfig, education: educationConfig, support: supportConfig,
+  french: frenchConfig,
 }
 
 const DEMO_ACCENT: Record<string, string> = {
   law: "#4f46e5", insurance: "#0d9488", health: "#059669",
-  education: "#7c3aed", support: "#0284c7",
+  education: "#7c3aed", support: "#0284c7", french: "#2563eb",
 }
+
+const LANGUAGE_MODES = [
+  { id: "fr",        label: "FR",       desc: "Réponse en français" },
+  { id: "en",        label: "EN",       desc: "Answer in English" },
+  { id: "bilingual", label: "FR + EN",  desc: "Bilingual answer" },
+] as const
+
+const BOARDS = [
+  { id: "all",  label: "All",  desc: "Search all indexed boards" },
+  { id: "cbse", label: "CBSE", desc: "Class 9–10 (Entre Jeunes, A1–A2)" },
+  { id: "ib",   label: "IB",   desc: "DP French B (grades 11–12, B1–B2)" },
+] as const
+
+// Demos that surface the language + board toggles. Others ignore the fields.
+const LANGUAGE_TOGGLE_DEMOS = new Set(["french"])
+const BOARD_TOGGLE_DEMOS = new Set(["french"])
+const LANGUAGE_KEY = "rag-demo-language-mode"
+const BOARD_KEY = "rag-demo-board"
 
 function newId() { return Math.random().toString(36).slice(2) }
 
@@ -62,6 +82,10 @@ export default function DemoPage({ params }: { params: Promise<{ demo: string }>
   const [settings, setSettings]         = useState<Settings>(_EMPTY)
   const [activeSources, setActiveSources] = useState<string | null>(null)
   const [mode, setMode]                 = useState<RetrievalMode>("hybrid")
+  const [languageMode, setLanguageMode] = useState<LanguageMode>("bilingual")
+  const [boardFilter, setBoardFilter]   = useState<BoardFilter>("all")
+  const showLanguageToggle = LANGUAGE_TOGGLE_DEMOS.has(demo)
+  const showBoardToggle    = BOARD_TOGGLE_DEMOS.has(demo)
   const [showSettings, setShowSettings] = useState(false)
   const [showTryEval, setShowTryEval]   = useState(false)
   const [showCorpus, setShowCorpus]     = useState(false)
@@ -72,6 +96,28 @@ export default function DemoPage({ params }: { params: Promise<{ demo: string }>
   const abortRef  = useRef<AbortController | null>(null)
 
   useEffect(() => { setSettings(loadSettings()) }, [])
+  useEffect(() => {
+    if (!showLanguageToggle) return
+    try {
+      const v = localStorage.getItem(LANGUAGE_KEY) as LanguageMode | null
+      if (v === "fr" || v === "en" || v === "bilingual") setLanguageMode(v)
+    } catch {}
+  }, [showLanguageToggle])
+  useEffect(() => {
+    if (!showLanguageToggle) return
+    try { localStorage.setItem(LANGUAGE_KEY, languageMode) } catch {}
+  }, [languageMode, showLanguageToggle])
+  useEffect(() => {
+    if (!showBoardToggle) return
+    try {
+      const v = localStorage.getItem(BOARD_KEY) as BoardFilter | null
+      if (v === "cbse" || v === "ib" || v === "all") setBoardFilter(v)
+    } catch {}
+  }, [showBoardToggle])
+  useEffect(() => {
+    if (!showBoardToggle) return
+    try { localStorage.setItem(BOARD_KEY, boardFilter) } catch {}
+  }, [boardFilter, showBoardToggle])
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }) }, [messages])
 
   const activeResponse = activeSources
@@ -96,7 +142,11 @@ export default function DemoPage({ params }: { params: Promise<{ demo: string }>
     const ctrl = new AbortController()
     abortRef.current = ctrl
     try {
-      const resp = await postQuery(demo, q, buildHistory(), settings, mode, ctrl.signal)
+      const resp = await postQuery(
+        demo, q, buildHistory(), settings, mode, ctrl.signal,
+        showLanguageToggle ? languageMode : undefined,
+        showBoardToggle ? boardFilter : undefined,
+      )
       setMessages(prev => prev.map(m =>
         m.id === assistId ? { ...m, isLoading: false, content: resp.answer, response: resp } : m
       ))
@@ -339,6 +389,48 @@ export default function DemoPage({ params }: { params: Promise<{ demo: string }>
                 <span className="text-[10px] text-[var(--text-4)] hidden sm:inline">
                   {MODES.find(m => m.id === mode)?.desc}
                 </span>
+                {showBoardToggle && (
+                  <div
+                    className="flex items-center gap-0.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-full p-0.5 ml-auto"
+                    title="Board filter — restrict retrieval to one board"
+                  >
+                    {BOARDS.map(b => (
+                      <button
+                        key={b.id}
+                        title={b.desc}
+                        onClick={() => setBoardFilter(b.id)}
+                        className={`px-3 py-1 text-[11px] font-medium rounded-full transition-all duration-150 ${
+                          boardFilter === b.id
+                            ? "bg-[var(--text)] text-[var(--bg)] shadow-sm"
+                            : "text-[var(--text-3)] hover:text-[var(--text-2)]"
+                        }`}
+                      >
+                        {b.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {showLanguageToggle && (
+                  <div
+                    className={`flex items-center gap-0.5 bg-[var(--bg-card)] border border-[var(--border)] rounded-full p-0.5 ${showBoardToggle ? "" : "ml-auto"}`}
+                    title="Answer language"
+                  >
+                    {LANGUAGE_MODES.map(l => (
+                      <button
+                        key={l.id}
+                        title={l.desc}
+                        onClick={() => setLanguageMode(l.id)}
+                        className={`px-3 py-1 text-[11px] font-medium rounded-full transition-all duration-150 ${
+                          languageMode === l.id
+                            ? "bg-[var(--text)] text-[var(--bg)] shadow-sm"
+                            : "text-[var(--text-3)] hover:text-[var(--text-2)]"
+                        }`}
+                      >
+                        {l.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Input box */}

@@ -3,6 +3,8 @@ import type { QueryResponse, Turn, Settings } from "./types"
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
 
 export type RetrievalMode = "hybrid" | "vanilla" | "bm25" | "hyde"
+export type LanguageMode = "fr" | "en" | "bilingual"
+export type BoardFilter = "cbse" | "ib" | "all"
 
 export async function postQuery(
   demo: string,
@@ -11,6 +13,8 @@ export async function postQuery(
   settings: Settings,
   mode: RetrievalMode = "hybrid",
   signal?: AbortSignal,
+  languageMode?: LanguageMode,
+  board?: BoardFilter,
 ): Promise<QueryResponse> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -20,11 +24,15 @@ export async function postQuery(
   const params = new URLSearchParams({ mode })
   if (settings.cfAccountId) params.set("cf_account_id", settings.cfAccountId)
   if (settings.cfGatewayId) params.set("cf_gateway_id", settings.cfGatewayId)
+  if (board && board !== "all") params.set("board", board)
+
+  const body: Record<string, unknown> = { q, history }
+  if (languageMode) body.language_mode = languageMode
 
   const resp = await fetch(`${API_URL}/api/${demo}/query?${params}`, {
     method: "POST",
     headers,
-    body: JSON.stringify({ q, history }),
+    body: JSON.stringify(body),
     signal,
   })
 

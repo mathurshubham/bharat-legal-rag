@@ -54,6 +54,7 @@ class QueryRequest(BaseModel):
     q: str
     history: list[Turn] = Field(default_factory=list)
     visibility: list[str] | None = None  # None → engine default (['public'])
+    language_mode: str | None = None  # per-demo opt-in: "fr" | "en" | "bilingual"; ignored if prompt has no placeholder
 
 
 class QueryResponse(BaseModel):
@@ -79,6 +80,7 @@ async def query(
     prompt_version: str = "v1",
     cf_account_id: str | None = None,
     cf_gateway_id: str | None = None,
+    board: str | None = None,
     x_openrouter_key: Annotated[str | None, Header()] = None,
 ):
     x_openrouter_key = x_openrouter_key or settings.openrouter_api_key or None
@@ -111,6 +113,7 @@ async def query(
         hyde_model=None,
         cf_account_id=cf_account_id,
         cf_gateway_id=cf_gateway_id,
+        board=board,
     )
     retrieve_ms = int((time.perf_counter() - t0) * 1000)
 
@@ -132,7 +135,14 @@ async def query(
     model = gen_model or _GEN_MODEL
     system_tmpl = _load_system_prompt(demo_id, prompt_version)
     context_str = _build_context(chunks)
-    system_msg = system_tmpl.replace("{context}", context_str)
+    lang_mode = (req.language_mode or "bilingual").lower()
+    if lang_mode not in ("fr", "en", "bilingual"):
+        lang_mode = "bilingual"
+    system_msg = (
+        system_tmpl
+        .replace("{context}", context_str)
+        .replace("{language_mode}", lang_mode)
+    )
 
     messages = [{"role": "system", "content": system_msg}]
     for turn in req.history[-10:]:
