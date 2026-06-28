@@ -1,4 +1,13 @@
-import type { QueryResponse, Turn, Settings } from "./types"
+import type {
+  QueryResponse,
+  RetrievedChunk,
+  Citation,
+  QueryConfig,
+  Usage,
+  Latency,
+  Turn,
+  Settings,
+} from "./types"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
 
@@ -42,6 +51,87 @@ export async function postQuery(
   }
 
   return resp.json() as Promise<QueryResponse>
+}
+
+export interface StreamMeta {
+  retrieved_chunks: RetrievedChunk[]
+  citations: Citation[]
+  config: QueryConfig
+  trace_id: string
+}
+
+export interface StreamCallbacks {
+  onMeta: (meta: StreamMeta) => void
+  onDelta: (text: string) => void
+  onDone: (final: { usage: Usage; latency: Latency }) => void
+  onError?: (message: string) => void
+}
+
+export async function postQueryStream(
+  demo: string,
+  q: string,
+  history: Turn[],
+  settings: Settings,
+  cb: StreamCallbacks,
+  mode: RetrievalMode = "hybrid",
+  signal?: AbortSignal,
+  languageMode?: LanguageMode,
+  board?: BoardFilter,
+): Promise<void> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    "X-OpenRouter-Key": settings.openrouterKey,
+  }
+
+  const params = new URLSearchParams({ mode })
+  if (settings.cfAccountId) params.set("cf_account_id", settings.cfAccountId)
+  if (settings.cfGatewayId) params.set("cf_gateway_id", settings.cfGatewayId)
+  if (board && board !== "all") params.set("board", board)
+
+  const body: Record<string, unknown> = { q, history }
+  if (languageMode) body.language_mode = languageMode
+
+  const resp = await fetch(`${API_URL}/api/${demo}/query/stream?${params}`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+    signal,
+  })
+
+  if (!resp.ok || !resp.body) {
+    const text = await resp.text().catch(() => resp.statusText)
+    throw new Error(`API ${resp.status}: ${text}`)
+  }
+
+  const reader = resp.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ""
+
+  while (true) {
+    const { value, done } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+
+    let sep: number
+    while ((sep = buffer.indexOf("\n\n")) !== -1) {
+      const raw = buffer.slice(0, sep).trim()
+      buffer = buffer.slice(sep + 2)
+      if (!raw.startsWith("data:")) continue
+      const payload = raw.slice(5).trim()
+      if (!payload) continue
+
+      const evt = JSON.parse(payload)
+      if (evt.type === "meta") {
+        cb.onMeta(evt as StreamMeta)
+      } else if (evt.type === "delta") {
+        cb.onDelta(evt.text as string)
+      } else if (evt.type === "done") {
+        cb.onDone({ usage: evt.usage, latency: evt.latency })
+      } else if (evt.type === "error") {
+        cb.onError?.(evt.message as string)
+      }
+    }
+  }
 }
 
 export interface DemoMeta {

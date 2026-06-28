@@ -1,15 +1,17 @@
 from __future__ import annotations
 
+import json
 import time
 import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Header, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from .condense import condense_query
 from .config import REPO_ROOT, settings
-from .gateway import chat_completion
+from .gateway import chat_completion, chat_completion_stream
 from .rerank import rerank
 from .retrieval import DEFAULT_VISIBILITY as _DEFAULT_VISIBILITY, retrieve
 
@@ -226,35 +228,50 @@ class QueryResponse(BaseModel):
     trace_id: str
 
 
-@router.post("/api/{demo}/query", response_model=QueryResponse)
-async def query(
-    demo: str,
-    req: QueryRequest,
-    mode: str = "hybrid",
-    top_k: int = 20,
-    top_n: int = 5,
-    do_rerank: bool = True,
-    gen_model: str | None = None,
-    reranker_model: str | None = None,
-    prompt_version: str = "v1",
-    cf_account_id: str | None = None,
-    cf_gateway_id: str | None = None,
-    board: str | None = None,
-    x_openrouter_key: Annotated[str | None, Header()] = None,
-):
-    x_openrouter_key = x_openrouter_key or settings.openrouter_api_key or None
-    if not x_openrouter_key:
+def _resolve_key(x_openrouter_key: str | None) -> str:
+    key = x_openrouter_key or settings.openrouter_api_key or None
+    if not key:
         raise HTTPException(status_code=401, detail="X-OpenRouter-Key header required")
+    return key
 
-    demo_id = demo.lower()
-    if demo_id == "french":
-        # French textbook retrieval needs a wider candidate set; the original
-        # generic defaults were tuned for smaller/statutory corpora.
-        if top_k == 20:
-            top_k = 40
-        if top_n == 5:
-            top_n = 8
 
+def _serialize_chunks(chunks: list[dict]) -> list[dict]:
+    return [
+        {
+            "id": c["id"],
+            "doc_id": c["doc_id"],
+            "doc_title": c["doc_title"],   # additive — server-authoritative label
+            "section_ref": c["section_ref"],
+            "content": c["content"][:400],
+            "metadata": c.get("metadata") or {},
+            "score": c.get("score", 0.0),
+            "rerank_score": c.get("rerank_score"),
+            "retrieval_boost": c.get("retrieval_boost"),
+            "boost_reasons": c.get("boost_reasons", []),
+        }
+        for c in chunks
+    ]
+
+
+async def _prepare_generation(
+    demo_id: str,
+    req: QueryRequest,
+    *,
+    mode: str,
+    top_k: int,
+    top_n: int,
+    do_rerank: bool,
+    gen_model: str | None,
+    reranker_model: str | None,
+    prompt_version: str,
+    cf_account_id: str | None,
+    cf_gateway_id: str | None,
+    board: str | None,
+    openrouter_key: str,
+) -> dict:
+    """Run condense → retrieve → rerank and build the generation messages.
+    Returns everything both the streaming and non-streaming endpoints need so
+    the pipeline stays in one place."""
     trace_id = str(uuid.uuid4())
     t_start = time.perf_counter()
 
@@ -262,7 +279,7 @@ async def query(
     t0 = time.perf_counter()
     history = [t.model_dump() for t in req.history]
     effective_q = await condense_query(
-        req.q, history, x_openrouter_key,
+        req.q, history, openrouter_key,
         account_id=cf_account_id, gateway_id=cf_gateway_id,
     )
     condense_ms = int((time.perf_counter() - t0) * 1000)
@@ -284,7 +301,7 @@ async def query(
         mode=mode,
         top_k=top_k,
         visibility=req.visibility,
-        openrouter_key=x_openrouter_key,
+        openrouter_key=openrouter_key,
         hyde_model=None,
         cf_account_id=cf_account_id,
         cf_gateway_id=cf_gateway_id,
@@ -313,7 +330,7 @@ async def query(
             # the reranker down-ranked can still be recovered.
             rerank_top_n = min(len(chunks), max(top_n * 3, 15))
         chunks = await rerank(
-            effective_q, chunks, rerank_top_n, x_openrouter_key,
+            effective_q, chunks, rerank_top_n, openrouter_key,
             account_id=cf_account_id, gateway_id=cf_gateway_id,
             model=reranker_model,
         )
@@ -327,8 +344,7 @@ async def query(
     else:
         chunks = chunks[:top_n]
 
-    # generate
-    t0 = time.perf_counter()
+    # build messages
     model = gen_model or _GEN_MODEL
     system_tmpl = _load_system_prompt(demo_id, prompt_version)
     context_str = _build_context(chunks)
@@ -350,55 +366,169 @@ async def query(
         messages.append({"role": turn.role, "content": turn.content})
     messages.append({"role": "user", "content": req.q})
 
+    config = {
+        "demo": demo_id,
+        "mode": mode,
+        "top_k": top_k,
+        "top_n": top_n,
+        "rerank": do_rerank,
+        "gen_model": model,
+        "reranker_model": reranker_model or settings.reranker_model,
+        "embed_model": _EMBED_MODEL,
+        "prompt_version": prompt_version,
+        "visibility": req.visibility or list(_DEFAULT_VISIBILITY),
+        "chapter_filter": chapter_filter,
+        "query_intent": french_intent if demo_id == "french" else {},
+    }
+
+    return {
+        "trace_id": trace_id,
+        "t_start": t_start,
+        "messages": messages,
+        "model": model,
+        "chunks": chunks,
+        "config": config,
+        "latency": {
+            "condense_ms": condense_ms,
+            "retrieve_ms": retrieve_ms,
+            "rerank_ms": rerank_ms,
+        },
+    }
+
+
+@router.post("/api/{demo}/query", response_model=QueryResponse)
+async def query(
+    demo: str,
+    req: QueryRequest,
+    mode: str = "hybrid",
+    top_k: int = 20,
+    top_n: int = 5,
+    do_rerank: bool = True,
+    gen_model: str | None = None,
+    reranker_model: str | None = None,
+    prompt_version: str = "v1",
+    cf_account_id: str | None = None,
+    cf_gateway_id: str | None = None,
+    board: str | None = None,
+    x_openrouter_key: Annotated[str | None, Header()] = None,
+):
+    x_openrouter_key = _resolve_key(x_openrouter_key)
+
+    demo_id = demo.lower()
+    if demo_id == "french":
+        # French textbook retrieval needs a wider candidate set; the original
+        # generic defaults were tuned for smaller/statutory corpora.
+        if top_k == 20:
+            top_k = 40
+        if top_n == 5:
+            top_n = 8
+
+    prep = await _prepare_generation(
+        demo_id, req,
+        mode=mode, top_k=top_k, top_n=top_n, do_rerank=do_rerank,
+        gen_model=gen_model, reranker_model=reranker_model,
+        prompt_version=prompt_version,
+        cf_account_id=cf_account_id, cf_gateway_id=cf_gateway_id,
+        board=board, openrouter_key=x_openrouter_key,
+    )
+
+    t0 = time.perf_counter()
     gen_result = await chat_completion(
-        messages=messages,
-        model=model,
+        messages=prep["messages"],
+        model=prep["model"],
         openrouter_key=x_openrouter_key,
         account_id=cf_account_id,
         gateway_id=cf_gateway_id,
     )
     generate_ms = int((time.perf_counter() - t0) * 1000)
-    total_ms = int((time.perf_counter() - t_start) * 1000)
+    total_ms = int((time.perf_counter() - prep["t_start"]) * 1000)
 
     return QueryResponse(
         answer=gen_result["text"],
-        retrieved_chunks=[
-            {
-                "id": c["id"],
-                "doc_id": c["doc_id"],
-                "doc_title": c["doc_title"],   # additive — server-authoritative label
-                "section_ref": c["section_ref"],
-                "content": c["content"][:400],
-                "metadata": c.get("metadata") or {},
-                "score": c.get("score", 0.0),
-                "rerank_score": c.get("rerank_score"),
-                "retrieval_boost": c.get("retrieval_boost"),
-                "boost_reasons": c.get("boost_reasons", []),
-            }
-            for c in chunks
-        ],
-        citations=_assemble_citations(chunks),
-        config={
-            "demo": demo_id,
-            "mode": mode,
-            "top_k": top_k,
-            "top_n": top_n,
-            "rerank": do_rerank,
-            "gen_model": model,
-            "reranker_model": reranker_model or settings.reranker_model,
-            "embed_model": _EMBED_MODEL,
-            "prompt_version": prompt_version,
-            "visibility": req.visibility or list(_DEFAULT_VISIBILITY),
-            "chapter_filter": chapter_filter,
-            "query_intent": french_intent if demo_id == "french" else {},
-        },
+        retrieved_chunks=_serialize_chunks(prep["chunks"]),
+        citations=_assemble_citations(prep["chunks"]),
+        config=prep["config"],
         usage=gen_result["usage"],
-        latency={
-            "condense_ms": condense_ms,
-            "retrieve_ms": retrieve_ms,
-            "rerank_ms": rerank_ms,
-            "generate_ms": generate_ms,
-            "total_ms": total_ms,
-        },
-        trace_id=trace_id,
+        latency={**prep["latency"], "generate_ms": generate_ms, "total_ms": total_ms},
+        trace_id=prep["trace_id"],
+    )
+
+
+@router.post("/api/{demo}/query/stream")
+async def query_stream(
+    demo: str,
+    req: QueryRequest,
+    mode: str = "hybrid",
+    top_k: int = 20,
+    top_n: int = 5,
+    do_rerank: bool = True,
+    gen_model: str | None = None,
+    reranker_model: str | None = None,
+    prompt_version: str = "v1",
+    cf_account_id: str | None = None,
+    cf_gateway_id: str | None = None,
+    board: str | None = None,
+    x_openrouter_key: Annotated[str | None, Header()] = None,
+):
+    x_openrouter_key = _resolve_key(x_openrouter_key)
+
+    demo_id = demo.lower()
+    if demo_id == "french":
+        if top_k == 20:
+            top_k = 40
+        if top_n == 5:
+            top_n = 8
+
+    prep = await _prepare_generation(
+        demo_id, req,
+        mode=mode, top_k=top_k, top_n=top_n, do_rerank=do_rerank,
+        gen_model=gen_model, reranker_model=reranker_model,
+        prompt_version=prompt_version,
+        cf_account_id=cf_account_id, cf_gateway_id=cf_gateway_id,
+        board=board, openrouter_key=x_openrouter_key,
+    )
+
+    async def event_stream():
+        # meta first — retrieval is done, so the client can render sources
+        # immediately while generation streams in.
+        meta = {
+            "type": "meta",
+            "retrieved_chunks": _serialize_chunks(prep["chunks"]),
+            "citations": _assemble_citations(prep["chunks"]),
+            "config": prep["config"],
+            "trace_id": prep["trace_id"],
+        }
+        yield f"data: {json.dumps(meta)}\n\n"
+
+        t0 = time.perf_counter()
+        usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}
+        try:
+            async for event in chat_completion_stream(
+                messages=prep["messages"],
+                model=prep["model"],
+                openrouter_key=x_openrouter_key,
+                account_id=cf_account_id,
+                gateway_id=cf_gateway_id,
+            ):
+                if event["type"] == "delta":
+                    yield f"data: {json.dumps({'type': 'delta', 'text': event['text']})}\n\n"
+                elif event["type"] == "done":
+                    usage = event["usage"]
+        except Exception as exc:  # noqa: BLE001 — surface to client, don't 500 mid-stream
+            yield f"data: {json.dumps({'type': 'error', 'message': str(exc)})}\n\n"
+            return
+
+        generate_ms = int((time.perf_counter() - t0) * 1000)
+        total_ms = int((time.perf_counter() - prep["t_start"]) * 1000)
+        done = {
+            "type": "done",
+            "usage": usage,
+            "latency": {**prep["latency"], "generate_ms": generate_ms, "total_ms": total_ms},
+        }
+        yield f"data: {json.dumps(done)}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )

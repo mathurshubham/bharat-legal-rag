@@ -2,8 +2,8 @@
 
 import { use, useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import type { ChatMessage, Settings, Turn } from "@/lib/types"
-import { postQuery, type RetrievalMode, type LanguageMode, type BoardFilter } from "@/lib/api"
+import type { ChatMessage, Settings, Turn, QueryResponse } from "@/lib/types"
+import { postQueryStream, type RetrievalMode, type LanguageMode, type BoardFilter } from "@/lib/api"
 import type { DemoConfig } from "@/lib/demoConfig"
 import { MessageBubble } from "../components/MessageBubble"
 import { ChunksPanel } from "../components/ChunksPanel"
@@ -144,16 +144,51 @@ export default function DemoPage({ params }: { params: Promise<{ demo: string }>
 
     const ctrl = new AbortController()
     abortRef.current = ctrl
+    let acc = ""
     try {
-      const resp = await postQuery(
-        demo, q, buildHistory(), settings, mode, ctrl.signal,
+      await postQueryStream(
+        demo, q, buildHistory(), settings,
+        {
+          onMeta: (meta) => {
+            const resp = {
+              answer: "",
+              retrieved_chunks: meta.retrieved_chunks,
+              citations: meta.citations,
+              config: meta.config,
+              trace_id: meta.trace_id,
+              usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },
+              latency: { condense_ms: 0, retrieve_ms: 0, rerank_ms: 0, generate_ms: 0, total_ms: 0 },
+            } as QueryResponse
+            setMessages(prev => prev.map(m =>
+              m.id === assistId ? { ...m, isLoading: false, response: resp } : m
+            ))
+            setActiveSources(assistId)
+          },
+          onDelta: (text) => {
+            acc += text
+            setMessages(prev => prev.map(m =>
+              m.id === assistId
+                ? { ...m, content: acc, response: m.response ? { ...m.response, answer: acc } : m.response }
+                : m
+            ))
+          },
+          onDone: ({ usage, latency }) => {
+            setMessages(prev => prev.map(m =>
+              m.id === assistId && m.response
+                ? { ...m, response: { ...m.response, usage, latency } }
+                : m
+            ))
+          },
+          onError: (msg) => {
+            setMessages(prev => prev.map(m =>
+              m.id === assistId ? { ...m, isLoading: false, error: msg } : m
+            ))
+          },
+        },
+        mode, ctrl.signal,
         showLanguageToggle ? languageMode : undefined,
         showBoardToggle ? boardFilter : undefined,
       )
-      setMessages(prev => prev.map(m =>
-        m.id === assistId ? { ...m, isLoading: false, content: resp.answer, response: resp } : m
-      ))
-      setActiveSources(assistId)
     } catch (err: unknown) {
       if ((err as Error).name === "AbortError") return
       const msg = err instanceof Error ? err.message : String(err)
