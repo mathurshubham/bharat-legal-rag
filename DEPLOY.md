@@ -177,7 +177,7 @@ ssh -i ~/.ssh/id_ed25519 rpism@192.168.1.22 \
   "rm ~/Documents/projects/bharat-legal-rag/missing_chunks.csv"
 ```
 
-> **Last synced 2026-06-28:** Mac had 63 doc_ids (8423 chunks). Pi had 56. Merged 7 missing French/IB education doc_ids (2849 chunks). Pi now at 63 doc_ids, 8423 chunks.
+> **Last synced 2026-06-28 (2):** Replaced CBSE_9_ENTREJEUNES (395→189 chunks) and CBSE_10_ENTREJEUNES (338→308 chunks) on Pi with re-ingested Mac versions. Pi now at 63 doc_ids, 8187 chunks (matches Mac).
 
 ### 5. Stop the API and web services
 
