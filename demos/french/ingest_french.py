@@ -68,9 +68,44 @@ ATOMIC_HEADING_PATTERNS = [
 
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.*?)\s*$")
 
-# CBSE / Entre Jeunes — chapter markers
-_LECON_NUM_RE = re.compile(r"LE[ÇC]ON\s+(\d+)", re.IGNORECASE)
-_LECON_BARE_RE = re.compile(r"^\s*LE[ÇC]ON\s*$", re.IGNORECASE)
+# CBSE / Entre Jeunes — chapter markers.
+#
+# The OCR'd markdown contains NO usable "Leçon N" headings in the body and no
+# page markers — lesson titles only appear in the SOMMAIRE. The one reliable
+# per-lesson anchor is the end-of-lesson recap "Je révise ce que je viens
+# d'apprendre", which occurs exactly once per lesson (12× per doc = 12 lessons).
+# We count these to assign a running lesson number, then map number → title via
+# the SOMMAIRE table below. The previous running-counter that matched "LEÇON N"
+# anywhere latched onto stray grammar-appendix refs (e.g. "Adjectif *Leçon 2/4/6*")
+# and produced garbage (one lesson absorbing 67-149 chunks); it is gone.
+_LESSON_END_RE = re.compile(r"viens\s+d['’]apprendre", re.IGNORECASE)
+
+# Lesson titles from each doc's SOMMAIRE, in order (index 0 → Leçon 1).
+# 3 lessons per unit, 4 units per doc.
+_CBSE_LESSON_TITLES: dict[str, list[str]] = {
+    "CBSE_9_ENTREJEUNES": [
+        "La famille", "Au lycée", "Une journée de Pauline",
+        "Les saisons", "Les voyages", "Les loisirs et les sports",
+        "L'argent de poche", "Faire des achats", "Un dîner en famille",
+        "La mode", "Les fêtes", "La Francophonie",
+    ],
+    "CBSE_10_ENTREJEUNES": [
+        "Retrouvons nos amis", "Après le bac", "Chercher du travail",
+        "Le plaisir de lire", "Les médias", "Chacun ses goûts",
+        "En pleine forme", "L'environnement", "Métro Boulot Dodo",
+        "Vive la République", "C'est bon le progrès", "Vers un monde interculturel",
+    ],
+}
+
+
+def lesson_meta(doc_id: str, lesson: int | None) -> tuple[int | None, str | None, int | None]:
+    """Map a 1-based lesson number to (lesson, title, unit). Returns Nones when
+    the doc has no lesson map or the number is out of range (e.g. appendix)."""
+    titles = _CBSE_LESSON_TITLES.get(doc_id)
+    if not titles or lesson is None or not (1 <= lesson <= len(titles)):
+        return None, None, None
+    unit = (lesson - 1) // 3 + 1
+    return lesson, titles[lesson - 1], unit
 
 # Admin/preamble headings to SKIP entirely (CBSE front matter, Constitution preamble, etc.)
 # Sections under these headings are not pedagogical content — drop to clean retrieval.
@@ -88,8 +123,11 @@ ADMIN_HEADING_PATTERNS = [
     re.compile(r"^SOMMAIRE", re.IGNORECASE),
     re.compile(r"^CENTRAL\s+BOARD\s+OF\s+SECONDARY", re.IGNORECASE),
     re.compile(r"^CBSE\s+FRENCH\s+LANGUAGE\s+TEXT\s+BOOK", re.IGNORECASE),
-    re.compile(r"^Entre\s+Jeunes\s*$", re.IGNORECASE),
-    re.compile(r"^EJ-\d", re.IGNORECASE),
+    # NOTE: "Entre Jeunes" (the book title) and "EJ-N" page headers are NOT admin.
+    # In the flat OCR heading structure the L1 "Entre Jeunes" title parents all
+    # lesson content, so flagging it admin subtree-skipped CBSE 9 Leçons 1-6
+    # entirely. Genuine front matter is caught by the specific patterns above
+    # (CENTRAL BOARD, ADVISORS, committee, SOMMAIRE, TABLE DES MATIÈRES, …).
     re.compile(r"^Shri\s+", re.IGNORECASE),
     re.compile(r"^Dr\.\s+", re.IGNORECASE),
     re.compile(r"^जया|^भारत|^उद्देशिका|^भाग|^मूल"),   # Hindi front matter (devnagari)
@@ -123,12 +161,6 @@ def clean_heading(text: str) -> str:
     return text
 
 
-def extract_lecon_num(text: str) -> int | None:
-    """Return Leçon number if heading text contains one, else None."""
-    m = _LECON_NUM_RE.search(text)
-    return int(m.group(1)) if m else None
-
-
 @dataclass
 class HeadingNode:
     level: int
@@ -137,20 +169,23 @@ class HeadingNode:
     children: list["HeadingNode"] = field(default_factory=list)
     parent: "HeadingNode | None" = None
     atomic: bool = False
-    lecon: int | None = None    # CBSE Leçon number (inherited from preceding numbered LEÇON)
+    lesson: int | None = None   # CBSE running lesson number (from end-of-lesson recap markers)
     admin: bool = False         # admin/preamble heading — content under this is skipped
 
 
-def parse_markdown(md: str) -> HeadingNode:
+def parse_markdown(md: str, *, track_lessons: bool = False) -> HeadingNode:
     """Build a heading-hierarchy tree from markdown. Root has level 0.
 
-    Tracks running CBSE Leçon number — when a heading is bare 'LEÇON' (no number),
-    it inherits the most recently seen Leçon number. This lets CBSE chunks with
-    OCR-damaged headings still get correct chapter tags.
+    When `track_lessons` is set (CBSE docs), assigns a running lesson number to
+    each node by counting end-of-lesson recap markers. A node carries the lesson
+    number in effect when it is created; a marker line bumps the counter so all
+    subsequent nodes belong to the next lesson. The recap line itself recaps the
+    lesson that is ending, so it stays in the current lesson. Numbers past the
+    last real lesson (the grammar appendix) are clamped out later via lesson_meta.
     """
     root = HeadingNode(level=0, text="(root)")
     stack: list[HeadingNode] = [root]
-    current_lecon: int | None = None
+    current_lesson = 1 if track_lessons else None
 
     for line in md.splitlines():
         m = HEADING_RE.match(line)
@@ -159,15 +194,8 @@ def parse_markdown(md: str) -> HeadingNode:
             text = clean_heading(m.group(2))
             atomic = is_atomic_heading(text)
             admin = is_admin_heading(text)
-            # Update running Leçon counter from explicit numbered headings
-            num = extract_lecon_num(text)
-            if num is not None:
-                current_lecon = num
-            # Inherit when heading is bare "LEÇON"
-            elif _LECON_BARE_RE.match(text) and current_lecon is not None:
-                text = f"LEÇON {current_lecon}"
             node = HeadingNode(level=level, text=text,
-                               atomic=atomic, admin=admin, lecon=current_lecon)
+                               atomic=atomic, admin=admin, lesson=current_lesson)
             while stack and stack[-1].level >= level:
                 stack.pop()
             parent = stack[-1] if stack else root
@@ -176,6 +204,8 @@ def parse_markdown(md: str) -> HeadingNode:
             stack.append(node)
         else:
             stack[-1].body.append(line)
+        if track_lessons and _LESSON_END_RE.search(line):
+            current_lesson += 1
     return root
 
 
@@ -218,6 +248,9 @@ class Section:
     body: str               # raw markdown body (no headings of this section's own)
     atomic: bool
     section_ref: str        # used in citations
+    lesson: int | None = None
+    lesson_title: str | None = None
+    unit: int | None = None
 
 
 def collect_sections(root: HeadingNode, doc_id: str, manifest: dict) -> list[Section]:
@@ -234,14 +267,11 @@ def collect_sections(root: HeadingNode, doc_id: str, manifest: dict) -> list[Sec
         if not body_text.strip():
             return
         path = header_path(node)
-        # Prefer Leçon-number-prefixed section_ref when available (CBSE), else last 2 heading levels.
-        if node.lecon is not None:
-            last = path.split(" > ")[-1]
-            # Avoid duplicating "LEÇON N" if already in last segment
-            if f"LEÇON {node.lecon}" in last or f"Leçon {node.lecon}" in last:
-                ref = f"{short} §Leçon {node.lecon} — {last}"
-            else:
-                ref = f"{short} §Leçon {node.lecon} — {last}"
+        lesson, title, unit = lesson_meta(doc_id, node.lesson)
+        last = path.split(" > ")[-1]
+        # Prefer Leçon-number+title prefix when available (CBSE), else last 2 heading levels.
+        if lesson is not None:
+            ref = f"{short} §Leçon {lesson} {title} — {last}"
         else:
             last_2 = " / ".join(p for p in path.split(" > ")[-2:]) or path
             ref = f"{short} §{last_2}"
@@ -251,6 +281,9 @@ def collect_sections(root: HeadingNode, doc_id: str, manifest: dict) -> list[Sec
             body=body_text,
             atomic=atomic,
             section_ref=ref,
+            lesson=lesson,
+            lesson_title=title,
+            unit=unit,
         ))
 
     def walk(node: HeadingNode):
@@ -308,6 +341,9 @@ class Chunk:
     header_path: str
     text: str
     chunk_index: int
+    lesson: int | None = None
+    lesson_title: str | None = None
+    unit: int | None = None
 
 
 def sub_chunk(section: Section) -> list[Chunk]:
@@ -320,12 +356,19 @@ def sub_chunk(section: Section) -> list[Chunk]:
         # safety valve — if a single atomic block is huge, split at paragraph boundary
         # but DON'T sentence-split — atomic = pedagogical unit).
         if tlen <= MAX_TOKENS:
-            return [Chunk(section.section_ref, section.header_path, body, 0)]
-        # Atomic but huge: paragraph-pack only
-        return _pack_paragraphs(section, [body])
+            chunks = [Chunk(section.section_ref, section.header_path, body, 0)]
+        else:
+            # Atomic but huge: paragraph-pack only
+            chunks = _pack_paragraphs(section, [body])
+    else:
+        paragraphs = split_into_paragraphs(body)
+        chunks = _pack_paragraphs(section, paragraphs)
 
-    paragraphs = split_into_paragraphs(body)
-    return _pack_paragraphs(section, paragraphs)
+    for c in chunks:
+        c.lesson = section.lesson
+        c.lesson_title = section.lesson_title
+        c.unit = section.unit
+    return chunks
 
 
 def _pack_paragraphs(section: Section, paragraphs: list[str]) -> list[Chunk]:
@@ -455,18 +498,19 @@ def skill_of(chunk_type: str) -> str:
     }.get(chunk_type, "mixed")
 
 
-def _aliases_for_section(section_ref: str, doc_id: str) -> str:
+def _aliases_for_section(chunk: Chunk, doc_id: str) -> str:
     """Generate retrieval-friendly aliases so queries using English terms
-    (Chapter, Lesson, Grade, Class) still hit French-tagged chunks.
+    (Chapter, Lesson, Grade, Class) and the lesson title still hit the chunk.
     """
     aliases: list[str] = []
-    # Leçon N → Chapter N | Lesson N
-    m = re.search(r"Le[çc]on\s+(\d+)", section_ref, re.IGNORECASE)
-    if m:
-        n = m.group(1)
-        aliases.append(f"Chapter {n}")
-        aliases.append(f"Lesson {n}")
-        aliases.append(f"Leçon {n}")
+    # Leçon N → Chapter N | Lesson N | Unité U + lesson title
+    if chunk.lesson is not None:
+        n = chunk.lesson
+        aliases += [f"Chapter {n}", f"Lesson {n}", f"Leçon {n}"]
+        if chunk.unit is not None:
+            aliases.append(f"Unité {chunk.unit}")
+        if chunk.lesson_title:
+            aliases.append(chunk.lesson_title)
     # Grade/Class equivalence (CBSE_9 → Class 9, Grade 9, 9th grade)
     if doc_id.startswith("CBSE_9_"):
         aliases += ["Class 9", "Grade 9", "9th grade", "Classe 9"]
@@ -479,12 +523,15 @@ def _aliases_for_section(section_ref: str, doc_id: str) -> str:
 
 def contextualize(doc_title: str, chunk: Chunk, board: str, doc_id: str) -> str:
     """Prepend doc_title + header_path + cross-vocab aliases + chunk-type before embedding."""
-    aliases = _aliases_for_section(chunk.section_ref, doc_id)
+    aliases = _aliases_for_section(chunk, doc_id)
     alias_part = f" — aliases: {aliases}" if aliases else ""
     ctype = chunk_type_of(chunk.header_path, chunk.text)
     level = level_of(doc_id)
     type_part = f" — type:{ctype} level:{level}"
-    header = f"[{doc_title} — board:{board}{type_part} — {chunk.header_path}{alias_part}]"
+    lesson_part = ""
+    if chunk.lesson is not None:
+        lesson_part = f" — Leçon {chunk.lesson} {chunk.lesson_title} (Unité {chunk.unit})"
+    header = f"[{doc_title} — board:{board}{type_part}{lesson_part} — {chunk.header_path}{alias_part}]"
     return f"{header}\n\n{chunk.text}"
 
 
@@ -498,7 +545,7 @@ def ingest_doc(conn: psycopg.Connection, doc_id: str, path: Path,
                manifest: dict, embed_manifest: dict) -> int:
     print(f"\n[{doc_id}]  loading {path.name}")
     raw = normalize_text(path.read_text(encoding="utf-8"))
-    root = parse_markdown(raw)
+    root = parse_markdown(raw, track_lessons=doc_id in _CBSE_LESSON_TITLES)
     sections = collect_sections(root, doc_id, manifest)
     print(f"  sections: {len(sections)} ({sum(1 for s in sections if s.atomic)} atomic)")
 
@@ -528,6 +575,9 @@ def ingest_doc(conn: psycopg.Connection, doc_id: str, path: Path,
             "skill": skill,
             "header_path": chunk.header_path,
             "demo": DEMO_ID,
+            "lecon": chunk.lesson,
+            "lecon_title": chunk.lesson_title,
+            "unit": chunk.unit,
         }
         rows.append((
             DEMO_ID, doc_id, doc_title,
@@ -588,7 +638,7 @@ def main():
         for path in docs:
             doc_id = path.stem.upper()
             raw = normalize_text(path.read_text(encoding="utf-8"))
-            root = parse_markdown(raw)
+            root = parse_markdown(raw, track_lessons=doc_id in _CBSE_LESSON_TITLES)
             sections = collect_sections(root, doc_id, manifest)
             chunks = []
             for sec in sections:
