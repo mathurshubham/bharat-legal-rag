@@ -388,9 +388,33 @@ def board_of(doc_id: str) -> str:
     return "other"
 
 
-def contextualize(doc_title: str, chunk: Chunk, board: str) -> str:
-    """Prepend doc_title + header_path before embedding (NOT stored as content)."""
-    header = f"[{doc_title} — board:{board} — {chunk.header_path}]"
+def _aliases_for_section(section_ref: str, doc_id: str) -> str:
+    """Generate retrieval-friendly aliases so queries using English terms
+    (Chapter, Lesson, Grade, Class) still hit French-tagged chunks.
+    """
+    aliases: list[str] = []
+    # Leçon N → Chapter N | Lesson N
+    m = re.search(r"Le[çc]on\s+(\d+)", section_ref, re.IGNORECASE)
+    if m:
+        n = m.group(1)
+        aliases.append(f"Chapter {n}")
+        aliases.append(f"Lesson {n}")
+        aliases.append(f"Leçon {n}")
+    # Grade/Class equivalence (CBSE_9 → Class 9, Grade 9, 9th grade)
+    if doc_id.startswith("CBSE_9_"):
+        aliases += ["Class 9", "Grade 9", "9th grade", "Classe 9"]
+    elif doc_id.startswith("CBSE_10_"):
+        aliases += ["Class 10", "Grade 10", "10th grade", "Classe 10"]
+    elif doc_id.startswith("IB_DP_"):
+        aliases += ["IB DP", "Grade 11", "Grade 12", "Class 11", "Class 12", "11th grade", "12th grade", "B1", "B2"]
+    return " | ".join(aliases)
+
+
+def contextualize(doc_title: str, chunk: Chunk, board: str, doc_id: str) -> str:
+    """Prepend doc_title + header_path + cross-vocab aliases before embedding."""
+    aliases = _aliases_for_section(chunk.section_ref, doc_id)
+    alias_part = f" — aliases: {aliases}" if aliases else ""
+    header = f"[{doc_title} — board:{board} — {chunk.header_path}{alias_part}]"
     return f"{header}\n\n{chunk.text}"
 
 
@@ -418,7 +442,7 @@ def ingest_doc(conn: psycopg.Connection, doc_id: str, path: Path,
     visibility = manifest.get("doc_visibility", {}).get(doc_id, "public")
 
     # Embed contextualized text
-    ctx_texts = [contextualize(doc_title, c, board) for c in chunks]
+    ctx_texts = [contextualize(doc_title, c, board, doc_id) for c in chunks]
     print(f"  embedding {len(chunks)} chunks (contextualized)…")
     vecs = embed_doc(ctx_texts)
 
