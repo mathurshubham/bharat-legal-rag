@@ -40,7 +40,22 @@ async def rerank(
         account_id or settings.cf_account_id,
         gateway_id or settings.cf_gateway_id,
     )
-    docs = [c["content"] for c in chunks]
+    # Iter 9 — feature-engineered rerank: prepend chunk-type/level tags + section_ref
+    # so Cohere sees pedagogical role + chapter alongside content. Helps queries
+    # that match a type (e.g. "grammar" → prefers type:grammar over type:exercise).
+    def _enrich(c: dict) -> str:
+        meta = c.get("metadata") or {}
+        bits: list[str] = []
+        t = meta.get("type") if isinstance(meta, dict) else None
+        lvl = meta.get("level") if isinstance(meta, dict) else None
+        if t:
+            bits.append(f"type:{t}")
+        if lvl:
+            bits.append(f"level:{lvl}")
+        sref = c.get("section_ref", "")
+        prefix = f"[{' | '.join(bits)}] {sref}\n" if bits else f"[{sref}]\n"
+        return prefix + (c.get("content") or "")
+    docs = [_enrich(c) for c in chunks]
 
     async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
         resp = await client.post(

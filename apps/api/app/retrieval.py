@@ -63,7 +63,7 @@ async def _dense(
         params.append(f"%{section_filter}%")
     params += [vec, top_k]
     sql = f"""
-        SELECT id, doc_id, doc_title, section_ref, content, visibility,
+        SELECT id, doc_id, doc_title, section_ref, content, visibility, metadata,
                1 - (embedding <=> %s::vector) AS score
         FROM chunks
         WHERE {' AND '.join(where)}
@@ -89,7 +89,7 @@ async def _bm25(
         params.append(f"%{section_filter}%")
     params.append(top_k)
     sql = f"""
-        SELECT id, doc_id, doc_title, section_ref, content, visibility,
+        SELECT id, doc_id, doc_title, section_ref, content, visibility, metadata,
                paradedb.score(id) AS score
         FROM chunks
         WHERE {' AND '.join(where)}

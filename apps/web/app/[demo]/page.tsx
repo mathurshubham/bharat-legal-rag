@@ -11,6 +11,7 @@ import { SettingsPanel } from "../components/SettingsPanel"
 import { TryEvalExportModal } from "../components/TryEvalExportModal"
 import { CorpusModal } from "../components/CorpusModal"
 import { DatasetModal } from "../components/DatasetModal"
+import { TeacherToolsModal } from "../components/TeacherToolsModal"
 import { DemoPicker } from "../components/DemoPicker"
 import { ThemeToggle } from "../components/ThemeToggle"
 
@@ -91,6 +92,8 @@ export default function DemoPage({ params }: { params: Promise<{ demo: string }>
   const [showCorpus, setShowCorpus]     = useState(false)
   const [showMobileMenu, setShowMobileMenu] = useState(false)
   const [showDataset, setShowDataset]   = useState(false)
+  const [showTeacher, setShowTeacher]   = useState(false)
+  const showTeacherTools = demo === "french"
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef  = useRef<HTMLTextAreaElement>(null)
   const abortRef  = useRef<AbortController | null>(null)
@@ -250,6 +253,17 @@ export default function DemoPage({ params }: { params: Promise<{ demo: string }>
               </svg>
               Dataset
             </button>
+
+            {/* Teacher tools — french only */}
+            {showTeacherTools && (
+              <button onClick={() => setShowTeacher(true)}
+                className="flex items-center gap-1.5 h-8 px-3 text-[12px] font-medium text-[var(--text-2)] border border-[var(--border)] rounded-lg hover:text-[var(--text)] hover:border-[var(--border-hi)] hover:bg-[var(--bg-card)] transition-all">
+                <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-4.247 2.123a1.125 1.125 0 01-1.006 0L8.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l4.247-2.123a1.125 1.125 0 011.006 0l4.247 2.123c.318.158.69.158 1.006 0z" />
+                </svg>
+                Teacher
+              </button>
+            )}
 
             {/* TryEval */}
             <button onClick={() => setShowTryEval(true)}
@@ -491,6 +505,7 @@ export default function DemoPage({ params }: { params: Promise<{ demo: string }>
       {showSettings  && <SettingsPanel settings={settings} onSave={s => { setSettings(s); saveSettings(s) }} onClose={() => setShowSettings(false)} />}
       {showTryEval   && <TryEvalExportModal demo={demo} config={config} settings={settings} mode={mode} onClose={() => setShowTryEval(false)} />}
       {showCorpus    && <CorpusModal demo={demo} config={config} onClose={() => setShowCorpus(false)} />}
+      {showTeacher   && <TeacherToolsModal demo={demo} board={boardFilter} settings={settings} onClose={() => setShowTeacher(false)} />}
       {showDataset   && <DatasetModal demo={demo} config={config} onClose={() => setShowDataset(false)} />}
     </div>
   )

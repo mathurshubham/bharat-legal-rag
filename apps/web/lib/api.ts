@@ -98,3 +98,64 @@ export async function fetchDataset(demo: string): Promise<DatasetInfo | null> {
   if (!resp.ok) return null
   return resp.json()
 }
+
+// ── Teacher dashboard — chapter outline ───────────────────────────────────────
+export interface ChapterSection {
+  section_ref: string
+  type: string | null
+  skill: string | null
+  preview: string
+}
+export interface Chapter {
+  id: string
+  doc_id: string
+  doc_title: string
+  board: string | null
+  level: string | null
+  sections: ChapterSection[]
+}
+export interface ChapterOutline {
+  demo_id: string
+  chapters: Chapter[]
+}
+
+export async function fetchChapters(demo: string, board?: string): Promise<ChapterOutline | null> {
+  const params = board && board !== "all" ? `?board=${board}` : ""
+  const resp = await fetch(`${API_URL}/api/${demo}/chapters${params}`)
+  if (!resp.ok) return null
+  return resp.json()
+}
+
+// ── Question generator ───────────────────────────────────────────────────────
+export interface GenQuestionsReq {
+  chapter?: string
+  board?: string
+  count?: number
+  difficulty?: string
+  question_types?: string[]
+  language_mode?: LanguageMode
+}
+
+export interface GenQuestionsResp {
+  questions_markdown: string
+  chunks_used: { section_ref: string; doc_title: string }[]
+  config: Record<string, unknown>
+  error?: string
+}
+
+export async function generateQuestions(
+  demo: string,
+  req: GenQuestionsReq,
+  settings: Settings,
+): Promise<GenQuestionsResp | null> {
+  const resp = await fetch(`${API_URL}/api/${demo}/generate-questions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-OpenRouter-Key": settings.openrouterKey,
+    },
+    body: JSON.stringify(req),
+  })
+  if (!resp.ok) return null
+  return resp.json()
+}
