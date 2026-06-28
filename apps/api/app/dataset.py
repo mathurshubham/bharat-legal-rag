@@ -9,11 +9,12 @@ REPO_ROOT = Path(__file__).parent.parent.parent.parent
 
 
 @router.get("/api/{demo}/dataset")
-async def dataset_info(demo: str):
+async def dataset_info(demo: str, version: str | None = None):
     """Return parsed golden evaluation dataset for a demo."""
-    path = REPO_ROOT / "golden_sets" / f"{demo.lower()}-dataset.csv"
+    suffix = f"-{version}" if version else ""
+    path = REPO_ROOT / "golden_sets" / f"{demo.lower()}{suffix}-dataset.csv"
     if not path.exists():
-        raise HTTPException(status_code=404, detail=f"No dataset for demo '{demo}'")
+        raise HTTPException(status_code=404, detail=f"No dataset for demo '{demo}' version={version!r}")
 
     rows = []
     categories: dict[str, int] = {}
@@ -33,6 +34,7 @@ async def dataset_info(demo: str):
 
     return {
         "demo_id": demo.lower(),
+        "version": version or "v1",
         "columns": columns,
         "rows": rows,
         "categories": categories,

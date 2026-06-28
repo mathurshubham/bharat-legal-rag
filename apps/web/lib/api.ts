@@ -87,14 +87,16 @@ export interface DatasetRow {
 
 export interface DatasetInfo {
   demo_id: string
+  version?: string
   columns: string[]
   rows: DatasetRow[]
   categories: Record<string, number>
   total: number
 }
 
-export async function fetchDataset(demo: string): Promise<DatasetInfo | null> {
-  const resp = await fetch(`${API_URL}/api/${demo}/dataset`)
+export async function fetchDataset(demo: string, version?: string): Promise<DatasetInfo | null> {
+  const params = version ? `?version=${encodeURIComponent(version)}` : ""
+  const resp = await fetch(`${API_URL}/api/${demo}/dataset${params}`)
   if (!resp.ok) return null
   return resp.json()
 }

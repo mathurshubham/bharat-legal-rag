@@ -413,7 +413,7 @@ _CHUNK_TYPE_PATTERNS: list[tuple[re.Pattern, str]] = [
     (re.compile(r"\bTest\b|Quiz", re.IGNORECASE), "exercise"),
     (re.compile(r"je\s+révise|J'évalue|Auto-évaluation", re.IGNORECASE), "revision"),
     (re.compile(r"Après l'unité", re.IGNORECASE), "revision"),
-    (re.compile(r"J'observe|Grammaire|Conjugue|Pronoms?|conditionnel|imparfait|passé|subjonctif|infinitif", re.IGNORECASE), "grammar"),
+    (re.compile(r"J'observe|Grammaire|Conjugue|Pronoms?|conditionnel|imparfait|passé|futur|subjonctif|infinitif|auxiliaire|temps|concordance", re.IGNORECASE), "grammar"),
     (re.compile(r"Vocabulaire|Vocabulary|Lexique", re.IGNORECASE), "vocab"),
     (re.compile(r"^Lis\b|^Read\b|Lecture|Le plaisir de lire", re.IGNORECASE), "reading"),
     (re.compile(r"Écoute|Compréhension orale", re.IGNORECASE), "listening"),

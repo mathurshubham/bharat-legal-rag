@@ -4,8 +4,11 @@ export interface RetrievedChunk {
   doc_title?: string   // server-provided; use as display label when present
   section_ref: string
   content: string
+  metadata?: Record<string, unknown>
   score: number
   rerank_score: number | null
+  retrieval_boost?: number | null
+  boost_reasons?: string[]
 }
 
 export interface Citation {
@@ -14,13 +17,18 @@ export interface Citation {
 }
 
 export interface QueryConfig {
+  demo: string
   mode: string
   top_k: number
   top_n: number
   rerank: boolean
   gen_model: string
+  reranker_model?: string
   embed_model: string
   prompt_version: string
+  visibility?: string[]
+  chapter_filter?: string | null
+  query_intent?: Record<string, unknown>
 }
 
 export interface Usage {

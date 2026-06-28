@@ -1,7 +1,9 @@
 from contextlib import asynccontextmanager
 
 import yaml
-from fastapi import FastAPI
+from typing import Annotated
+
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import REPO_ROOT, settings
@@ -175,20 +177,30 @@ async def generate_questions(
     req: GenQuestionsReq,
     cf_account_id: str | None = None,
     cf_gateway_id: str | None = None,
-    x_openrouter_key: str | None = None,
+    x_openrouter_key: Annotated[str | None, Header()] = None,
 ):
     """Build a question bank from indexed chunks. Powers teacher question-gen UI."""
-    from fastapi import Header  # type: ignore
     from .retrieval import retrieve as _retrieve
     from .gateway import chat_completion
     from .config import settings as _settings
+    from .query import _boost_french_chunks, _detect_french_chapter, _detect_french_intent
     import os
 
     key = x_openrouter_key or _settings.openrouter_api_key
     if not key:
-        return {"error": "OpenRouter key required"}
+        raise HTTPException(status_code=401, detail="OpenRouter key required")
 
-    seed_query = req.chapter or "chapter overview"
+    count = max(1, min(req.count, 50))
+    chapter_filter = _detect_french_chapter(req.chapter or "") or req.chapter
+    seed_query = " ".join(
+        part for part in (
+            req.chapter,
+            req.difficulty,
+            " ".join(req.question_types or []),
+            "French question bank chapter overview",
+        )
+        if part
+    )
     chunks = await _retrieve(
         seed_query, demo_id=demo.lower(),
         mode="hybrid", top_k=40,
@@ -197,15 +209,40 @@ async def generate_questions(
         cf_account_id=cf_account_id,
         cf_gateway_id=cf_gateway_id,
         board=req.board,
-        section_filter=req.chapter,
+        section_filter=None,
     )
+    chunks = _boost_french_chunks(
+        chunks,
+        chapter_filter=chapter_filter,
+        intent=_detect_french_intent(seed_query + " teacher question bank"),
+    )
+    if chapter_filter:
+        chapter_chunks = [
+            c for c in chunks
+            if chapter_filter.lower() in c.get("section_ref", "").lower()
+            or chapter_filter.lower() in ((c.get("metadata") or {}).get("header_path", "") if isinstance(c.get("metadata"), dict) else "").lower()
+        ]
+        if chapter_chunks:
+            chunks = chapter_chunks + [c for c in chunks if c not in chapter_chunks]
+
+    def _format_chunk(c: dict) -> str:
+        meta = c.get("metadata") or {}
+        meta_bits = []
+        if isinstance(meta, dict):
+            for key in ("board", "level", "type", "skill", "header_path"):
+                value = meta.get(key)
+                if value:
+                    meta_bits.append(f"{key}:{value}")
+        meta_line = f"\n[metadata: {' | '.join(meta_bits)}]" if meta_bits else ""
+        return f"[{c['section_ref']} — {c['doc_title']}]{meta_line}\n{c['content']}"
+
     context = "\n\n---\n\n".join(
-        f"[{c['section_ref']}]\n{c['content']}" for c in chunks[:15]
+        _format_chunk(c) for c in chunks[:15]
     )
 
     qtypes = ", ".join(req.question_types or ["mcq", "fill_in", "short"])
     sys_prompt = f"""You are an exam-question writer for French language teachers.
-From the indexed textbook chunks below, generate {req.count} questions.
+From the indexed textbook chunks below, generate {count} questions.
 
 Constraints:
 - Question types: {qtypes}
@@ -237,10 +274,19 @@ Format:
     )
     return {
         "questions_markdown": result["text"],
-        "chunks_used": [{"section_ref": c["section_ref"], "doc_title": c["doc_title"]} for c in chunks[:15]],
+        "chunks_used": [
+            {
+                "section_ref": c["section_ref"],
+                "doc_title": c["doc_title"],
+                "metadata": c.get("metadata") or {},
+                "retrieval_boost": c.get("retrieval_boost"),
+                "boost_reasons": c.get("boost_reasons", []),
+            }
+            for c in chunks[:15]
+        ],
         "config": {
             "chapter": req.chapter, "board": req.board,
-            "count": req.count, "difficulty": req.difficulty,
+            "count": count, "difficulty": req.difficulty,
             "question_types": req.question_types or ["mcq", "fill_in", "short"],
         },
     }
