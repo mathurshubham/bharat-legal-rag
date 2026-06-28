@@ -194,10 +194,41 @@ QCM, "Vrai ou faux — justifiez", "Reliez", short comprehension questions, a "P
 "## Corrigé / Pistes de correction"."""
 
 
+def build_key_prompt(*, board: str | None, paper_md: str, context: str) -> str:
+    """Pass 2 for exam_paper: produce the COMPLETE marking scheme / answer key for an
+    already-generated paper, with its own token budget so it can never be truncated."""
+    is_ib = (board or "").lower() == "ib"
+    rubric = (
+        "For open IB tasks (production écrite, oral) give band-style guidance (langue / message / "
+        "concept) + a brief model answer."
+        if is_ib else
+        "For open CBSE tasks (lettre, invitation) give the real mark breakdown — Format 4 "
+        "(place/date/addressee/opening 2; closing+name 2); Idea & creativity 4; "
+        "Content/accuracy/cohesion 2; deduct ≤2 grammar, ≤2 off-topic — plus a brief model answer."
+    )
+    return f"""You are the examiner writing the official CORRIGÉ / MARKING SCHEME for the French
+paper below. Produce a COMPLETE key: one entry for EVERY numbered question in EVERY section.
+
+Rules:
+- Objective items (conjugation, fill-in, vrai/faux, matching, trouvez dans le texte, MCQ,
+  négation, style direct/indirect, pronouns): give the EXACT answer + accepted alternatives.
+- {rubric}
+- Ground answers ONLY in the source chunks. Never omit or stop early.
+- Output ONLY the marking scheme (start with "## Corrigé / Marking scheme"). Do not repeat the questions.
+
+## The paper
+{paper_md}
+
+## Source chunks (for grounding answers)
+{context}
+"""
+
+
 def build_prompt(
     *, board: str | None, mode: str, grade: str | None, level: str | None,
     chapter: str | None, count: int, question_types: list[str] | None,
     language_mode: str, teacher_notes: str | None, context: str,
+    include_key: bool = True,
 ) -> str:
     b = (board or "").lower()
     qtypes = ", ".join(question_types or ["mcq", "fill_in", "short", "vrai_faux"])
@@ -224,6 +255,25 @@ def build_prompt(
         f"\nTEACHER INSTRUCTIONS (highest priority — follow these even if they override defaults):\n{teacher_notes.strip()}\n"
         if teacher_notes and teacher_notes.strip() else ""
     )
+    if include_key:
+        key_block = """
+ANSWER KEY / CORRIGÉ (write this in full — it is graded as heavily as the questions):
+- COMPLETE: an entry for EVERY numbered question in EVERY section. Never omit, never stop early,
+  never write "etc.". If space is tight, shorten the QUESTIONS, never the key.
+- OBJECTIVE items (conjugation, fill-in/cloze, vrai-faux, matching, "trouvez dans le texte",
+  MCQ, négation, style direct/indirect, pronouns): give the EXACT answer. Include accepted
+  alternatives where real (e.g. "à / pour", "dont / duquel", "Où habitaient-ils ? / Où est-ce
+  qu'ils habitaient ?").
+- OPEN tasks (lettre, invitation, essay/production écrite, oral/présentation): do NOT leave blank
+  and do NOT invent one "correct" essay. Give a MARKING SCHEME = a mark breakdown plus a short
+  model answer. Use the real CBSE letter rubric as the template:
+  Format 4 (place/date/addressee/opening = 2; closing + writer's name = 2); Idea & creativity 4;
+  Content/accuracy/cohesion 2; deduct ≤2 for grammar, ≤2 for off-topic. For IB, give band-style
+  guidance (langue / message / conceptual focus) and a brief model."""
+    else:
+        key_block = """
+DO NOT write any answers or a corrigé in this output — produce the QUESTIONS / TASKS ONLY.
+The marking scheme is generated separately."""
     return f"""You are an experienced French examiner writing for {board_line.split(':',1)[1].strip()}
 
 {board_line}
@@ -239,11 +289,7 @@ HARD RULES:
   characters, statistics, or texts that are not present or directly inferable.
 - Cite the originating section_ref (in italics) for each question or task where applicable.
 - Respect the marks/word-limits stated above; keep numbering and section titles exactly.
-- The answer key MUST be COMPLETE: give a correct, defensible answer for EVERY numbered question
-  in EVERY section. Never omit answers, never stop early, never write "etc." in the key. If space
-  is tight, shorten the QUESTIONS — never the answer key. For open writing/oral tasks, give a brief
-  model answer or marking guidance instead of leaving it blank.
-{teacher_line}
+{teacher_line}{key_block}
 ## Source chunks
 {context}
 """

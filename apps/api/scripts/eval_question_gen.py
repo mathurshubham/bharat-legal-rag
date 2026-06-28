@@ -41,19 +41,35 @@ REQUEST_SET: list[dict] = [
      "intent": "Full CBSE Class 9 (A1) board-style French paper."},
     {"id": "cbse10_exam", "board": "cbse", "mode": "exam_paper", "difficulty": "A2",
      "chapter": None, "count": 12, "grade": "10",
-     "intent": "Full CBSE Class 10 (A2) board-style French paper."},
+     "intent": "Full CBSE Class 10 (A2) board-style French paper (truncation-prone)."},
     {"id": "cbse10_practice_media", "board": "cbse", "mode": "practice_set", "difficulty": "A2",
      "chapter": "Leçon 5", "count": 8, "grade": "10", "question_types": ["fill_in", "short"],
      "intent": "CBSE 10 practice set scoped to Leçon 5 (Les médias)."},
     {"id": "cbse9_practice_achats", "board": "cbse", "mode": "practice_set", "difficulty": "A1",
      "chapter": "Leçon 8", "count": 8, "grade": "9", "question_types": ["mcq", "vrai_faux"],
      "intent": "CBSE 9 practice set scoped to Leçon 8 (Faire des achats)."},
+    {"id": "cbse9_practice_negation", "board": "cbse", "mode": "practice_set", "difficulty": "A1",
+     "chapter": "Leçon 7", "count": 6, "grade": "9", "question_types": ["fill_in", "short"],
+     "intent": "CBSE 9 grammar practice scoped to Leçon 7 (négation)."},
+    {"id": "cbse10_practice_subjonctif", "board": "cbse", "mode": "practice_set", "difficulty": "A2",
+     "chapter": "Leçon 8", "count": 6, "grade": "10", "question_types": ["fill_in", "short"],
+     "teacher_notes": "Focus on the subjonctif. Add one 5-mark guided writing task.",
+     "intent": "CBSE 10 teacher-customized practice (subjonctif + writing task), Leçon 8."},
     {"id": "ib_exam_partage", "board": "ib", "mode": "exam_paper", "difficulty": "B1-B2",
      "chapter": "5A", "count": 6, "grade": "12",
      "intent": "IB DP French B exam-style tasks on Partage de la planète 5A."},
+    {"id": "ib_exam_identites", "board": "ib", "mode": "exam_paper", "difficulty": "B1-B2",
+     "chapter": "1A", "count": 6, "grade": "11",
+     "intent": "IB DP French B exam-style tasks on Identités 1A (Qui suis-je?)."},
     {"id": "ib_practice_media", "board": "ib", "mode": "practice_set", "difficulty": "B1-B2",
      "chapter": "8A", "count": 6, "grade": "11", "question_types": ["short", "mcq"],
      "intent": "IB practice set on Ingéniosité 8A (Communication et média)."},
+    {"id": "ib_practice_travail", "board": "ib", "mode": "practice_set", "difficulty": "B1-B2",
+     "chapter": "9B", "count": 6, "grade": "12", "question_types": ["short", "essay"],
+     "intent": "IB practice set on Org. sociale 9B (Le monde du travail)."},
+    {"id": "cbse10_practice_culture", "board": "cbse", "mode": "practice_set", "difficulty": "A2",
+     "chapter": "Leçon 2", "count": 6, "grade": "10", "question_types": ["short", "mcq"],
+     "intent": "CBSE 10 culture/civ practice scoped to Leçon 2 (éducation)."},
 ]
 
 # Compact board-format reference embedded in the judge prompt so it can score
@@ -91,7 +107,11 @@ RUBRIC = """Score each dimension 0-5 (5=excellent, 0=absent/wrong). Integers onl
    no off-corpus references)? Penalise hallucinated passages/answers.
 3. level_fit: difficulty appropriate to the level (CBSE9=A1, CBSE10=A2, IB=B1-B2)? Penalise
    too-easy IB or too-hard CBSE 9.
-4. answer_key: is there a correct, defensible answer key / mark scheme, and are the answers right?
+4. answer_key: is the key COMPLETE and correct? Objective items (grammar, vrai/faux, cloze,
+   matching, find-in-text) need exact answers (accepted alternatives like "à/pour", "dont/duquel"
+   are a plus). OPEN tasks (letters, essays, oral, invitations) should get a MARKING SCHEME /
+   rubric (mark breakdown like Format/Content/Grammar) plus a brief model answer — NOT a blank or
+   a single "answer". Penalise missing/omitted/truncated keys heavily.
 5. chapter_scope: if a chapter/unit was requested, do questions stay within it? (If no chapter
    requested, score 5 unless it wanders incoherently.)
 6. authenticity: instruction phrasing & language authentic to the board (French phrasing for CBSE
@@ -144,6 +164,13 @@ async def judge_one(key: str, judge_model: str, req: dict, gen: dict) -> dict:
     context_refs = "\n".join(
         f"- {c.get('section_ref')}" for c in gen.get("chunks_used", [])[:15]
     )
+    # The answer key sits at the END of long exam papers; a head-only window made the
+    # judge score answer_key as "missing". Send head + tail so it sees questions AND key.
+    md = gen["markdown"]
+    if len(md) > 13000:
+        shown = md[:8000] + "\n\n...[middle of paper elided for length]...\n\n" + md[-5000:]
+    else:
+        shown = md
     prompt = f"""You are a strict examiner auditing AI-generated French exam questions.
 
 BOARD FORMAT REFERENCE:
@@ -161,7 +188,7 @@ RUBRIC:
 
 GENERATED OUTPUT TO SCORE:
 <<<
-{gen['markdown'][:6000]}
+{shown}
 >>>
 
 {JUDGE_SCHEMA_HINT}"""

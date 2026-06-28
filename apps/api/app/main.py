@@ -252,23 +252,43 @@ async def generate_questions(
 
     context = "\n\n---\n\n".join(_format_chunk(c) for c in chunks[:n_ctx])
 
-    sys_prompt = qg.build_prompt(
-        board=req.board, mode=mode, grade=grade, level=req.difficulty,
-        chapter=req.chapter, count=count, question_types=req.question_types,
-        language_mode=req.language_mode, teacher_notes=req.teacher_notes,
-        context=context,
-    )
-    result = await chat_completion(
-        messages=[{"role": "user", "content": sys_prompt}],
-        model=req.gen_model or os.getenv("GEN_MODEL", "deepseek/deepseek-v3.2"),
-        openrouter_key=key,
-        account_id=cf_account_id,
-        gateway_id=cf_gateway_id,
-        max_tokens=6000 if mode == "exam_paper" else 3000,
-        temperature=0.3,
-    )
+    model = req.gen_model or os.getenv("GEN_MODEL", "deepseek/deepseek-v3.2")
+    # exam papers are long; generating the paper and its marking scheme in one call
+    # truncates the key. Two-pass for exam_paper: questions, then a full key.
+    if mode == "exam_paper":
+        paper_prompt = qg.build_prompt(
+            board=req.board, mode=mode, grade=grade, level=req.difficulty,
+            chapter=req.chapter, count=count, question_types=req.question_types,
+            language_mode=req.language_mode, teacher_notes=req.teacher_notes,
+            context=context, include_key=False,
+        )
+        paper = await chat_completion(
+            messages=[{"role": "user", "content": paper_prompt}], model=model,
+            openrouter_key=key, account_id=cf_account_id, gateway_id=cf_gateway_id,
+            max_tokens=5000, temperature=0.3,
+        )
+        key_prompt = qg.build_key_prompt(board=req.board, paper_md=paper["text"], context=context)
+        key_res = await chat_completion(
+            messages=[{"role": "user", "content": key_prompt}], model=model,
+            openrouter_key=key, account_id=cf_account_id, gateway_id=cf_gateway_id,
+            max_tokens=4000, temperature=0.2,
+        )
+        markdown = f"{paper['text']}\n\n{key_res['text']}"
+    else:
+        sys_prompt = qg.build_prompt(
+            board=req.board, mode=mode, grade=grade, level=req.difficulty,
+            chapter=req.chapter, count=count, question_types=req.question_types,
+            language_mode=req.language_mode, teacher_notes=req.teacher_notes,
+            context=context,
+        )
+        single = await chat_completion(
+            messages=[{"role": "user", "content": sys_prompt}], model=model,
+            openrouter_key=key, account_id=cf_account_id, gateway_id=cf_gateway_id,
+            max_tokens=3000, temperature=0.3,
+        )
+        markdown = single["text"]
     return {
-        "questions_markdown": result["text"],
+        "questions_markdown": markdown,
         "chunks_used": [
             {
                 "section_ref": c["section_ref"],
