@@ -14,5 +14,7 @@ apps/api/scripts/__pycache__/
 # Marker working directories (intermediate output, real .md sits at corpus/clean root)
 demos/*/corpus/clean/_marker_*/
 *.dump
+.DS_Store
+runs/
 apps/api/.DS_Store
 apps/api/uv.lock

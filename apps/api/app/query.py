@@ -27,6 +27,35 @@ _FRENCH_GRAMMAR_MARKERS = (
     "différence entre", "conjug", "conjugaison", "explain", "explique",
 )
 
+# Bilingual topic map: query trigger terms (en + fr, lowercase) → French
+# textbook content terms to look for in chunk text. Fixes recall misses where
+# an English query term (e.g. "media") shares no token with the French chunk
+# (e.g. "Les médias"). Applied as a soft additive boost, never a hard filter.
+_FRENCH_TOPIC_TERMS: tuple[tuple[tuple[str, ...], tuple[str, ...]], ...] = (
+    (("media", "média", "médias", "press", "newspaper"),
+     ("média", "médias", "presse", "télévision", "radio", "journal", "actualités")),
+    (("shopping", "achats", "shop", "store", "buy"),
+     ("achats", "magasin", "boulangerie", "épicerie", "supermarché", "marché")),
+    (("family", "famille", "relatives", "parents"),
+     ("famille", "père", "mère", "frère", "sœur", "soeur", "parents")),
+    (("francophonie", "francophone", "french-speaking"),
+     ("francophonie", "francophone", "sénégal", "québec", "pays")),
+    (("food", "cooking", "cuisine", "nourriture", "meal"),
+     ("cuisine", "repas", "recette", "manger", "plat", "nourriture")),
+    (("health", "doctor", "médecin", "santé", "sick", "illness"),
+     ("médecin", "malade", "patient", "ordonnance", "santé", "maladie")),
+    (("environment", "environnement", "pollution", "ecology"),
+     ("environnement", "pollution", "recyclage", "planète", "réchauffement", "écologie")),
+    (("education", "school", "éducation", "studies"),
+     ("éducation", "lycée", "collège", "bac", "école", "études")),
+    (("travel", "voyage", "trip", "transport"),
+     ("voyage", "transport", "train", "avion", "vacances")),
+    (("work", "travail", "job", "career", "employment"),
+     ("travail", "métier", "emploi", "profession", "carrière")),
+    (("weather", "météo", "climate", "climat"),
+     ("météo", "temps", "climat", "saison", "pluie")),
+)
+
 
 def _load_system_prompt(demo_id: str, version: str) -> str:
     path = REPO_ROOT / "demos" / demo_id / "prompts" / f"system_{version}.md"
@@ -78,11 +107,16 @@ def _detect_french_intent(query: str) -> dict:
     grammar_hit = any(m in q for m in _FRENCH_GRAMMAR_MARKERS)
     vocab_hit = any(m in q for m in ("vocab", "vocabulary", "lexique", "words for", "mots pour"))
     teacher_hit = any(m in q for m in ("lesson plan", "question bank", "exam", "worksheet", "teacher", "questions"))
+    topic_terms: list[str] = []
+    for triggers, content_terms in _FRENCH_TOPIC_TERMS:
+        if any(t in q for t in triggers):
+            topic_terms.extend(content_terms)
     return {
         "grammar": grammar_hit or len(tense_hits) >= 2,
         "vocab": vocab_hit,
         "teacher": teacher_hit,
         "tense_hits": tense_hits,
+        "topic_terms": sorted(set(topic_terms)),
     }
 
 
@@ -107,6 +141,8 @@ def _boost_french_chunks(
     if not chunks:
         return chunks
 
+    topic_terms = [t.lower() for t in (intent.get("topic_terms") or [])]
+
     boosted = []
     for idx, chunk in enumerate(chunks):
         row = dict(chunk)
@@ -125,6 +161,18 @@ def _boost_french_chunks(
         ):
             boost += 2.0
             reasons.append(f"chapter:{chapter_filter}")
+
+        if topic_terms:
+            haystack = f"{section_ref} {header_path} {row.get('content', '')}".lower()
+            matched = {t for t in topic_terms if t in haystack}
+            if matched:
+                # Soft, capped: reward term overlap without overpowering chapter
+                # or grammar-type signals. Section/header hits weigh double.
+                term_boost = min(len(matched) * 0.4, 1.2)
+                if any(t in f"{section_ref} {header_path}".lower() for t in matched):
+                    term_boost = min(term_boost + 0.4, 1.5)
+                boost += term_boost
+                reasons.append(f"topic:{'+'.join(sorted(matched))}")
 
         if intent.get("grammar"):
             if ctype == "grammar":
@@ -256,10 +304,13 @@ async def query(
     rerank_ms = 0
     if do_rerank and chunks:
         rerank_top_n = top_n
-        if demo_id == "french" and french_intent.get("grammar"):
+        if demo_id == "french" and (
+            french_intent.get("grammar") or french_intent.get("topic_terms")
+        ):
             # Let the cross-encoder consider more candidates, then re-apply
-            # deterministic type boosts so revision/exercise chunks do not
-            # crowd out grammar explanations.
+            # deterministic type/topic boosts so revision/exercise chunks do
+            # not crowd out grammar explanations, and so topic-term matches
+            # the reranker down-ranked can still be recovered.
             rerank_top_n = min(len(chunks), max(top_n * 3, 15))
         chunks = await rerank(
             effective_q, chunks, rerank_top_n, x_openrouter_key,

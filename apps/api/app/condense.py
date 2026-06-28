@@ -60,5 +60,7 @@ async def condense_query(
         max_tokens=128,
         temperature=0.0,
     )
-    condensed = result["text"].strip().strip('"').strip("'")
+    # The cheap condense model occasionally returns null content; fall back to
+    # the original query rather than 500 the whole request.
+    condensed = (result.get("text") or "").strip().strip('"').strip("'")
     return condensed or query

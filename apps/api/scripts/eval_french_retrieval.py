@@ -189,7 +189,7 @@ async def eval_case(case: Case, args: argparse.Namespace) -> dict:
 
     if args.rerank and candidates:
         rerank_top_n = args.top_n
-        if intent.get("grammar"):
+        if intent.get("grammar") or intent.get("topic_terms"):
             rerank_top_n = min(len(candidates), max(args.top_n * 3, 15))
         final = await rerank(
             case.query,
