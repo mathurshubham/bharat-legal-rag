@@ -106,54 +106,78 @@ sudo docker compose -f ~/Documents/projects/bharat-legal-rag/docker-compose.yml 
 until sudo docker exec bharat-legal-rag-db-1 pg_isready -U legal -d legalrag 2>/dev/null; do sleep 2; done && echo "DB ready"
 ```
 
-### 4. Restore the DB dump (first deploy only)
+### 4. Sync DB from Mac to Pi
 
-Skip this step if the database already has data.
+Always **merge, never wipe** — the Pi DB accumulates data from multiple demos. A full restore from a Mac dump deletes data that isn't on the Mac.
 
-> **How the dump was created (2026-06-28):** Dumped from local Docker container on Mac (macOS), transferred to Pi via SCP over SSH.
->
-> ```bash
-> # On Mac — dump from local Docker container:
-> docker exec legal-rag-db-1 pg_dump -U legal -d legalrag -Fc -f /tmp/legalrag.dump
-> docker cp legal-rag-db-1:/tmp/legalrag.dump ./legalrag.dump
->
-> # Transfer to Pi (pubkey auth — run ssh-copy-id first if not done):
-> scp -i ~/.ssh/id_ed25519 ./legalrag.dump \
->   rpism@192.168.1.22:/home/rpism/Documents/projects/bharat-legal-rag/legalrag.dump
-> ```
+#### Step 1 — Dump from Mac Docker container
 
 ```bash
-# Verify row count first — if this returns 4896 total, skip the restore:
-sudo docker exec bharat-legal-rag-db-1 psql -U legal -d legalrag \
-  -c "SELECT doc_id, count(*) FROM chunks GROUP BY doc_id ORDER BY doc_id;"
-
-# Restore (data-section only to avoid duplicate-index errors):
-sudo docker exec -i bharat-legal-rag-db-1 \
-  pg_restore -U legal -d legalrag -Fc --section=data \
-  < ~/Documents/projects/bharat-legal-rag/legalrag.dump
-
-# Recreate indexes (BM25 + HNSW):
-sudo docker exec bharat-legal-rag-db-1 psql -U legal -d legalrag -c "
-  CREATE INDEX IF NOT EXISTS chunks_hnsw ON chunks USING hnsw (embedding vector_cosine_ops);
-  CREATE INDEX IF NOT EXISTS chunks_bm25 ON chunks USING bm25 (id, content, doc_title, section_ref) WITH (key_field='id');
-  CREATE INDEX IF NOT EXISTS chunks_doc_id ON chunks (doc_id);
-  CREATE INDEX IF NOT EXISTS chunks_section_ref ON chunks (doc_id, section_ref);
-"
+# On Mac:
+docker exec legal-rag-db-1 pg_dump -U legal -d legalrag -Fc -f /tmp/legalrag.dump
+docker cp legal-rag-db-1:/tmp/legalrag.dump ./legalrag.dump
 ```
 
-Expected counts after restore:
+#### Step 2 — Compare Mac vs Pi to find missing doc_ids
 
-| doc_id                   | count |
-|--------------------------|-------|
-| BNS_2023                 | 767   |
-| BNSS_2023                | 1233  |
-| BSA_2023                 | 362   |
-| CONSTITUTION             | 1782  |
-| CONSUMER_PROTECTION_2019 | 129   |
-| CONTRACT_ACT_1872        | 516   |
-| DPDP_2023                | 104   |
-| LAW_MAPPINGS             | 3     |
-| **Total**                | **4896** |
+```bash
+# On Mac — list what's in the local DB:
+docker exec legal-rag-db-1 psql -U legal -d legalrag \
+  -c "SELECT doc_id, count(*) FROM chunks GROUP BY doc_id ORDER BY doc_id;"
+
+# On Pi — list what's already there:
+ssh -i ~/.ssh/id_ed25519 rpism@192.168.1.22 \
+  "sudo docker exec bharat-legal-rag-db-1 psql -U legal -d legalrag \
+  -c 'SELECT doc_id, count(*) FROM chunks GROUP BY doc_id ORDER BY doc_id;'"
+```
+
+Diff the two lists. Only proceed with doc_ids present on Mac but missing from Pi.
+
+#### Step 3 — Export only missing doc_ids as CSV
+
+```bash
+# On Mac — replace the IN list with your actual missing doc_ids:
+docker exec legal-rag-db-1 psql -U legal -d legalrag -c \
+  "\COPY (SELECT * FROM chunks WHERE doc_id IN ('DOC_ID_1','DOC_ID_2')) \
+  TO '/tmp/missing_chunks.csv' CSV HEADER"
+docker cp legal-rag-db-1:/tmp/missing_chunks.csv ./missing_chunks.csv
+```
+
+#### Step 4 — Transfer to Pi
+
+```bash
+# Pubkey auth setup (one-time, already done):
+# sshpass -p '6678' ssh-copy-id -o PreferredAuthentications=password -i ~/.ssh/id_ed25519.pub rpism@192.168.1.22
+
+scp -i ~/.ssh/id_ed25519 ./missing_chunks.csv \
+  rpism@192.168.1.22:/home/rpism/Documents/projects/bharat-legal-rag/missing_chunks.csv
+```
+
+#### Step 5 — Import into Pi DB
+
+```bash
+ssh -i ~/.ssh/id_ed25519 rpism@192.168.1.22 \
+  "sudo docker cp /home/rpism/Documents/projects/bharat-legal-rag/missing_chunks.csv \
+  bharat-legal-rag-db-1:/tmp/missing_chunks.csv && \
+  sudo docker exec bharat-legal-rag-db-1 psql -U legal -d legalrag \
+  -c \"\COPY chunks FROM '/tmp/missing_chunks.csv' CSV HEADER\""
+```
+
+#### Step 6 — Verify and clean up
+
+```bash
+# Verify total counts match Mac:
+ssh -i ~/.ssh/id_ed25519 rpism@192.168.1.22 \
+  "sudo docker exec bharat-legal-rag-db-1 psql -U legal -d legalrag \
+  -c 'SELECT count(DISTINCT doc_id) as doc_count, count(*) as total_chunks FROM chunks;'"
+
+# Clean up temp files:
+rm ./missing_chunks.csv
+ssh -i ~/.ssh/id_ed25519 rpism@192.168.1.22 \
+  "rm ~/Documents/projects/bharat-legal-rag/missing_chunks.csv"
+```
+
+> **Last synced 2026-06-28:** Mac had 63 doc_ids (8423 chunks). Pi had 56. Merged 7 missing French/IB education doc_ids (2849 chunks). Pi now at 63 doc_ids, 8423 chunks.
 
 ### 5. Stop the API and web services
 
