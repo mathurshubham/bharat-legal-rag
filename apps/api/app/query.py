@@ -103,6 +103,17 @@ async def query(
 
     # retrieve
     t0 = time.perf_counter()
+    # Per-demo lightweight query preprocessing — detect chapter number for `french` demo
+    # Match against both the original query AND the condensed query (condense may drop "chapter")
+    chapter_filter: str | None = None
+    if demo_id == "french":
+        import re as _re
+        for q_text in (req.q, effective_q):
+            m = _re.search(r"(?:le[çc]on|chapter|chapitre|lesson)\s+(\d+)", q_text, _re.IGNORECASE)
+            if m:
+                chapter_filter = f"Leçon {m.group(1)}"
+                break
+
     chunks = await retrieve(
         effective_q,
         demo_id=demo_id,
@@ -114,6 +125,7 @@ async def query(
         cf_account_id=cf_account_id,
         cf_gateway_id=cf_gateway_id,
         board=board,
+        section_filter=chapter_filter,
     )
     retrieve_ms = int((time.perf_counter() - t0) * 1000)
 
