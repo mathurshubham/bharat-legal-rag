@@ -68,9 +68,41 @@ ATOMIC_HEADING_PATTERNS = [
 
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.*?)\s*$")
 
+# CBSE / Entre Jeunes — chapter markers
+_LECON_NUM_RE = re.compile(r"LE[ÇC]ON\s+(\d+)", re.IGNORECASE)
+_LECON_BARE_RE = re.compile(r"^\s*LE[ÇC]ON\s*$", re.IGNORECASE)
+
+# Admin/preamble headings to SKIP entirely (CBSE front matter, Constitution preamble, etc.)
+# Sections under these headings are not pedagogical content — drop to clean retrieval.
+ADMIN_HEADING_PATTERNS = [
+    re.compile(r"^(THE\s+)?CONSTITUTION\s+OF\s+INDIA", re.IGNORECASE),
+    re.compile(r"^PREAMBLE", re.IGNORECASE),
+    re.compile(r"^CHAPTER\s+IV", re.IGNORECASE),   # Article 51A wrapper
+    re.compile(r"^FUNDAMENTAL\s+DUTIES", re.IGNORECASE),
+    re.compile(r"^ARTICLE\s+51A", re.IGNORECASE),
+    re.compile(r"^PREFACE", re.IGNORECASE),
+    re.compile(r"^ACKNOWLEDGEMENT", re.IGNORECASE),
+    re.compile(r"^CBSE\s+ADVISORS", re.IGNORECASE),
+    re.compile(r"^TEXTBOOK\s+REVISING\s+COMMITTEE", re.IGNORECASE),
+    re.compile(r"^TABLE\s+DES\s+MATI[EÈ]RES", re.IGNORECASE),
+    re.compile(r"^SOMMAIRE", re.IGNORECASE),
+    re.compile(r"^CENTRAL\s+BOARD\s+OF\s+SECONDARY", re.IGNORECASE),
+    re.compile(r"^CBSE\s+FRENCH\s+LANGUAGE\s+TEXT\s+BOOK", re.IGNORECASE),
+    re.compile(r"^Entre\s+Jeunes\s*$", re.IGNORECASE),
+    re.compile(r"^EJ-\d", re.IGNORECASE),
+    re.compile(r"^Shri\s+", re.IGNORECASE),
+    re.compile(r"^Dr\.\s+", re.IGNORECASE),
+    re.compile(r"^जया|^भारत|^उद्देशिका|^भाग|^मूल"),   # Hindi front matter (devnagari)
+    re.compile(r"^Professor\s+"),
+]
+
 
 def is_atomic_heading(text: str) -> bool:
     return any(p.search(text) for p in ATOMIC_HEADING_PATTERNS)
+
+
+def is_admin_heading(text: str) -> bool:
+    return any(p.search(text) for p in ADMIN_HEADING_PATTERNS)
 
 
 _UNIT_CODE_RE = re.compile(r"(\d+[A-C])\s+([A-ZÉÀÂÊÎÔÛ]+)")
@@ -91,6 +123,12 @@ def clean_heading(text: str) -> str:
     return text
 
 
+def extract_lecon_num(text: str) -> int | None:
+    """Return Leçon number if heading text contains one, else None."""
+    m = _LECON_NUM_RE.search(text)
+    return int(m.group(1)) if m else None
+
+
 @dataclass
 class HeadingNode:
     level: int
@@ -99,12 +137,20 @@ class HeadingNode:
     children: list["HeadingNode"] = field(default_factory=list)
     parent: "HeadingNode | None" = None
     atomic: bool = False
+    lecon: int | None = None    # CBSE Leçon number (inherited from preceding numbered LEÇON)
+    admin: bool = False         # admin/preamble heading — content under this is skipped
 
 
 def parse_markdown(md: str) -> HeadingNode:
-    """Build a heading-hierarchy tree from markdown. Root has level 0."""
+    """Build a heading-hierarchy tree from markdown. Root has level 0.
+
+    Tracks running CBSE Leçon number — when a heading is bare 'LEÇON' (no number),
+    it inherits the most recently seen Leçon number. This lets CBSE chunks with
+    OCR-damaged headings still get correct chapter tags.
+    """
     root = HeadingNode(level=0, text="(root)")
     stack: list[HeadingNode] = [root]
+    current_lecon: int | None = None
 
     for line in md.splitlines():
         m = HEADING_RE.match(line)
@@ -112,8 +158,16 @@ def parse_markdown(md: str) -> HeadingNode:
             level = len(m.group(1))
             text = clean_heading(m.group(2))
             atomic = is_atomic_heading(text)
-            node = HeadingNode(level=level, text=text, atomic=atomic)
-            # Pop stack until we find a parent with lower level
+            admin = is_admin_heading(text)
+            # Update running Leçon counter from explicit numbered headings
+            num = extract_lecon_num(text)
+            if num is not None:
+                current_lecon = num
+            # Inherit when heading is bare "LEÇON"
+            elif _LECON_BARE_RE.match(text) and current_lecon is not None:
+                text = f"LEÇON {current_lecon}"
+            node = HeadingNode(level=level, text=text,
+                               atomic=atomic, admin=admin, lecon=current_lecon)
             while stack and stack[-1].level >= level:
                 stack.pop()
             parent = stack[-1] if stack else root
@@ -123,6 +177,16 @@ def parse_markdown(md: str) -> HeadingNode:
         else:
             stack[-1].body.append(line)
     return root
+
+
+def is_under_admin(node: HeadingNode) -> bool:
+    """True if any ancestor (or self) is marked admin."""
+    cur = node
+    while cur is not None:
+        if cur.admin:
+            return True
+        cur = cur.parent
+    return False
 
 
 def header_path(node: HeadingNode) -> str:
@@ -170,9 +234,17 @@ def collect_sections(root: HeadingNode, doc_id: str, manifest: dict) -> list[Sec
         if not body_text.strip():
             return
         path = header_path(node)
-        # section_ref = short § <last 2 heading levels of path>
-        last_2 = " / ".join(p for p in path.split(" > ")[-2:]) or path
-        ref = f"{short} §{last_2}"
+        # Prefer Leçon-number-prefixed section_ref when available (CBSE), else last 2 heading levels.
+        if node.lecon is not None:
+            last = path.split(" > ")[-1]
+            # Avoid duplicating "LEÇON N" if already in last segment
+            if f"LEÇON {node.lecon}" in last or f"Leçon {node.lecon}" in last:
+                ref = f"{short} §Leçon {node.lecon} — {last}"
+            else:
+                ref = f"{short} §Leçon {node.lecon} — {last}"
+        else:
+            last_2 = " / ".join(p for p in path.split(" > ")[-2:]) or path
+            ref = f"{short} §{last_2}"
         sections.append(Section(
             doc_id=doc_id,
             header_path=path,
@@ -182,15 +254,16 @@ def collect_sections(root: HeadingNode, doc_id: str, manifest: dict) -> list[Sec
         ))
 
     def walk(node: HeadingNode):
+        # Skip admin/preamble content entirely
+        if is_under_admin(node):
+            return
         if is_under_atomic(node) and node.parent and node.parent.atomic:
             # Skip — atomic ancestor already collected this content
             return
         if node.atomic:
-            # Collect entire subtree as one atomic section
             body = collect_subtree_body(node)
             emit(node, body, atomic=True)
             return
-        # Non-atomic: emit own body, then recurse into children
         own_body = "\n".join(node.body).strip()
         if own_body:
             emit(node, own_body, atomic=False)
