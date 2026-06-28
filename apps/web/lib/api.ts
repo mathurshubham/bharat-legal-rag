@@ -222,10 +222,13 @@ export async function fetchChapters(demo: string, board?: string): Promise<Chapt
 export interface GenQuestionsReq {
   chapter?: string
   board?: string
+  grade?: string                 // CBSE "9" | "10"
   count?: number
   difficulty?: string
   question_types?: string[]
   language_mode?: LanguageMode
+  mode?: "exam_paper" | "practice_set"
+  teacher_notes?: string         // free-text teacher customization
 }
 
 export interface GenQuestionsResp {

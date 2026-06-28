@@ -47,7 +47,13 @@ async def chat_completion(
         response = await client.post(url, json=payload, headers=headers)
     response.raise_for_status()
     data = response.json()
-    text = data["choices"][0]["message"]["content"]
+    # OpenRouter (esp. free tier) can return HTTP 200 with an error body and no
+    # "choices" — surface it clearly instead of a raw KeyError → opaque 500.
+    if "choices" not in data or not data["choices"]:
+        err = (data.get("error") or {})
+        msg = err.get("message") if isinstance(err, dict) else str(err)
+        raise RuntimeError(f"model '{model}' returned no choices: {msg or data}")
+    text = data["choices"][0]["message"].get("content") or ""
     usage = data.get("usage", {})
     return {
         "text": text,

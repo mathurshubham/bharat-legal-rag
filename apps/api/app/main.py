@@ -163,12 +163,16 @@ from pydantic import BaseModel as _BM   # noqa: E402
 
 
 class GenQuestionsReq(_BM):
-    chapter: str | None = None       # e.g. "Leçon 6" or null = use entire corpus
+    chapter: str | None = None       # e.g. "Leçon 6" / IB unit "8A" / null = whole corpus
     board: str | None = None         # cbse | ib | None=all
+    grade: str | None = None         # CBSE "9" | "10" (else inferred from difficulty)
     count: int = 10
     difficulty: str | None = None    # A1 | A2 | B1 | B2 | null
-    question_types: list[str] | None = None   # ["mcq","fill_in","short","essay"]
+    question_types: list[str] | None = None   # ["mcq","fill_in","short","essay","vrai_faux"]
     language_mode: str = "bilingual"
+    mode: str = "practice_set"       # "exam_paper" | "practice_set"
+    teacher_notes: str | None = None  # free-text teacher customization (highest priority)
+    gen_model: str | None = None     # override generation model (else GEN_MODEL env)
 
 
 @app.post("/api/{demo}/generate-questions")
@@ -184,6 +188,7 @@ async def generate_questions(
     from .gateway import chat_completion
     from .config import settings as _settings
     from .query import _boost_french_chunks, _detect_french_chapter, _detect_french_intent
+    from . import question_gen as qg
     import os
 
     key = x_openrouter_key or _settings.openrouter_api_key
@@ -191,19 +196,22 @@ async def generate_questions(
         raise HTTPException(status_code=401, detail="OpenRouter key required")
 
     count = max(1, min(req.count, 50))
+    mode = req.mode if req.mode in ("exam_paper", "practice_set") else "practice_set"
+    grade = qg.resolve_grade(req.board, req.grade, req.difficulty)
     chapter_filter = _detect_french_chapter(req.chapter or "") or req.chapter
     seed_query = " ".join(
         part for part in (
-            req.chapter,
-            req.difficulty,
+            req.chapter, req.difficulty,
             " ".join(req.question_types or []),
-            "French question bank chapter overview",
+            "French exam question paper chapter overview vocabulary grammar comprehension",
         )
         if part
     )
+    # exam papers need broad grade coverage; practice sets stay tighter
+    top_k = 60 if mode == "exam_paper" else 40
     chunks = await _retrieve(
         seed_query, demo_id=demo.lower(),
-        mode="hybrid", top_k=40,
+        mode="hybrid", top_k=top_k,
         visibility=["public"],
         openrouter_key=key,
         cf_account_id=cf_account_id,
@@ -216,61 +224,48 @@ async def generate_questions(
         chapter_filter=chapter_filter,
         intent=_detect_french_intent(seed_query + " teacher question bank"),
     )
+    # hard grade/chapter scoping (fixes cross-chapter + cross-grade leak)
+    chunks, scope_info = qg.scope_chunks(chunks, req.board, grade, chapter_filter)
+
+    # chapter scope must not depend on semantic recall: fetch the chapter's chunks
+    # directly by tag and use them as primary context when available.
     if chapter_filter:
-        chapter_chunks = [
-            c for c in chunks
-            if chapter_filter.lower() in c.get("section_ref", "").lower()
-            or chapter_filter.lower() in ((c.get("metadata") or {}).get("header_path", "") if isinstance(c.get("metadata"), dict) else "").lower()
-        ]
-        if chapter_chunks:
-            chunks = chapter_chunks + [c for c in chunks if c not in chapter_chunks]
+        tag_chunks = await qg.fetch_chapter_chunks(demo.lower(), req.board, grade, chapter_filter)
+        if tag_chunks:
+            seen = {c["id"] for c in tag_chunks}
+            filler = [c for c in chunks if c.get("id") not in seen]
+            chunks = tag_chunks + filler
+            scope_info["chapter_filtered"] = "db_tag"
+
+    n_ctx = 20 if mode == "exam_paper" else 12
 
     def _format_chunk(c: dict) -> str:
         meta = c.get("metadata") or {}
         meta_bits = []
         if isinstance(meta, dict):
-            for key in ("board", "level", "type", "skill", "header_path"):
-                value = meta.get(key)
-                if value:
-                    meta_bits.append(f"{key}:{value}")
+            for k in ("board", "level", "lecon", "lecon_title", "type", "skill", "header_path"):
+                v = meta.get(k)
+                if v:
+                    meta_bits.append(f"{k}:{v}")
         meta_line = f"\n[metadata: {' | '.join(meta_bits)}]" if meta_bits else ""
         return f"[{c['section_ref']} — {c['doc_title']}]{meta_line}\n{c['content']}"
 
-    context = "\n\n---\n\n".join(
-        _format_chunk(c) for c in chunks[:15]
+    context = "\n\n---\n\n".join(_format_chunk(c) for c in chunks[:n_ctx])
+
+    sys_prompt = qg.build_prompt(
+        board=req.board, mode=mode, grade=grade, level=req.difficulty,
+        chapter=req.chapter, count=count, question_types=req.question_types,
+        language_mode=req.language_mode, teacher_notes=req.teacher_notes,
+        context=context,
     )
-
-    qtypes = ", ".join(req.question_types or ["mcq", "fill_in", "short"])
-    sys_prompt = f"""You are an exam-question writer for French language teachers.
-From the indexed textbook chunks below, generate {count} questions.
-
-Constraints:
-- Question types: {qtypes}
-- Difficulty: {req.difficulty or 'mixed'}
-- Chapter scope: {req.chapter or 'any'}
-- Board: {req.board or 'any'}
-- Language: {req.language_mode}
-- Every question must cite its source section_ref in parentheses.
-- After all questions, write an "## Answer key" section with brief, defensible answers.
-
-Format:
-1. <question> _(section_ref)_
-2. ...
-## Answer key
-1. <answer>
-2. ...
-
-## Source chunks
-{context}
-"""
     result = await chat_completion(
         messages=[{"role": "user", "content": sys_prompt}],
-        model=os.getenv("GEN_MODEL", "deepseek/deepseek-v3.2"),
+        model=req.gen_model or os.getenv("GEN_MODEL", "deepseek/deepseek-v3.2"),
         openrouter_key=key,
         account_id=cf_account_id,
         gateway_id=cf_gateway_id,
-        max_tokens=2500,
-        temperature=0.4,
+        max_tokens=6000 if mode == "exam_paper" else 3000,
+        temperature=0.3,
     )
     return {
         "questions_markdown": result["text"],
@@ -282,11 +277,12 @@ Format:
                 "retrieval_boost": c.get("retrieval_boost"),
                 "boost_reasons": c.get("boost_reasons", []),
             }
-            for c in chunks[:15]
+            for c in chunks[:n_ctx]
         ],
         "config": {
-            "chapter": req.chapter, "board": req.board,
-            "count": count, "difficulty": req.difficulty,
+            "chapter": req.chapter, "board": req.board, "grade": grade,
+            "mode": mode, "count": count, "difficulty": req.difficulty,
             "question_types": req.question_types or ["mcq", "fill_in", "short"],
+            "scope": scope_info,
         },
     }

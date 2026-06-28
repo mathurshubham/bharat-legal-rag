@@ -181,6 +181,9 @@ function QuestionsTab({ demo, board, settings }: { demo: string; board: string; 
   const [difficulty, setDifficulty] = useState<string>("")
   const [types, setTypes] = useState<string[]>(["mcq","fill_in","short"])
   const [language, setLanguage] = useState<LanguageMode>("bilingual")
+  const [mode, setMode] = useState<"practice_set" | "exam_paper">("practice_set")
+  const [grade, setGrade] = useState<string>("")
+  const [teacherNotes, setTeacherNotes] = useState<string>("")
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<string>("")
 
@@ -192,9 +195,12 @@ function QuestionsTab({ demo, board, settings }: { demo: string; board: string; 
     const r = await generateQuestions(demo, {
       chapter: chapter || undefined,
       board: board === "all" ? undefined : board,
+      grade: grade || undefined,
       count, difficulty: difficulty || undefined,
       question_types: types,
       language_mode: language,
+      mode,
+      teacher_notes: teacherNotes.trim() || undefined,
     }, settings)
     setLoading(false)
     if (!r) { setResult("Error generating questions."); return }
@@ -203,10 +209,37 @@ function QuestionsTab({ demo, board, settings }: { demo: string; board: string; 
 
   return (
     <div className="space-y-4">
+      {/* Output mode */}
+      <div>
+        <label className="block text-[11px] text-[var(--text-3)] mb-1">Output</label>
+        <div className="flex gap-2">
+          {([["practice_set","Practice set"],["exam_paper","Full exam paper"]] as const).map(([v,l]) => (
+            <button key={v} onClick={() => setMode(v)}
+              className={`text-[11px] px-3 py-1 rounded-full border transition-all ${
+                mode === v
+                  ? "bg-[var(--text)] text-[var(--bg)] border-[var(--text)]"
+                  : "bg-[var(--bg-card)] text-[var(--text-3)] border-[var(--border)] hover:border-[var(--border-hi)]"
+              }`}>
+              {l}
+            </button>
+          ))}
+        </div>
+      </div>
       {/* Form */}
       <div className="grid grid-cols-2 gap-3">
+        {board === "cbse" && (
+          <div>
+            <label className="block text-[11px] text-[var(--text-3)] mb-1">Grade (CBSE)</label>
+            <select value={grade} onChange={e => setGrade(e.target.value)}
+              className="w-full text-[12px] bg-[var(--bg-input)] border border-[var(--border)] rounded-lg px-3 py-1.5 focus:outline-none focus:border-[var(--border-hi)]">
+              <option value="">Any / infer from difficulty</option>
+              <option value="9">Class 9 (A1)</option>
+              <option value="10">Class 10 (A2)</option>
+            </select>
+          </div>
+        )}
         <div>
-          <label className="block text-[11px] text-[var(--text-3)] mb-1">Chapter (e.g. "Leçon 6" or leave blank)</label>
+          <label className="block text-[11px] text-[var(--text-3)] mb-1">Chapter (e.g. "Leçon 6", IB "8A", or blank)</label>
           <input value={chapter} onChange={e => setChapter(e.target.value)}
             placeholder="Leçon 6"
             className="w-full text-[12px] bg-[var(--bg-input)] border border-[var(--border)] rounded-lg px-3 py-1.5 focus:outline-none focus:border-[var(--border-hi)]" />
@@ -255,9 +288,18 @@ function QuestionsTab({ demo, board, settings }: { demo: string; board: string; 
           ))}
         </div>
       </div>
+      <div>
+        <label className="block text-[11px] text-[var(--text-3)] mb-1">
+          Teacher instructions (optional — customize the output)
+        </label>
+        <textarea value={teacherNotes} onChange={e => setTeacherNotes(e.target.value)}
+          rows={2}
+          placeholder='e.g. "Focus on the subjonctif, add a 5-mark essay, keep MCQs easy, theme: l&apos;environnement"'
+          className="w-full text-[12px] bg-[var(--bg-input)] border border-[var(--border)] rounded-lg px-3 py-1.5 focus:outline-none focus:border-[var(--border-hi)] resize-y" />
+      </div>
       <button onClick={onGenerate} disabled={loading || types.length === 0}
         className="w-full py-2 rounded-lg bg-[var(--accent)] text-white text-[12px] font-medium disabled:opacity-50 transition-opacity">
-        {loading ? "Generating…" : `Generate ${count} questions`}
+        {loading ? "Generating…" : mode === "exam_paper" ? "Generate exam paper" : `Generate ${count} questions`}
       </button>
 
       {/* Result */}
