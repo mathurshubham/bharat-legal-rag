@@ -265,7 +265,7 @@ async def generate_questions(
         paper = await chat_completion(
             messages=[{"role": "user", "content": paper_prompt}], model=model,
             openrouter_key=key, account_id=cf_account_id, gateway_id=cf_gateway_id,
-            max_tokens=5000, temperature=0.3,
+            max_tokens=5000, temperature=0.15,
         )
         key_prompt = qg.build_key_prompt(board=req.board, paper_md=paper["text"], context=context)
         key_res = await chat_completion(
@@ -284,7 +284,7 @@ async def generate_questions(
         single = await chat_completion(
             messages=[{"role": "user", "content": sys_prompt}], model=model,
             openrouter_key=key, account_id=cf_account_id, gateway_id=cf_gateway_id,
-            max_tokens=3000, temperature=0.3,
+            max_tokens=3000, temperature=0.15,
         )
         markdown = single["text"]
     return {
