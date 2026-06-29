@@ -256,6 +256,9 @@ export default function DemoPage({ params }: { params: Promise<{ demo: string }>
                 {[
                   { label: "Corpus",   hint: "Indexed documents",     action: () => { setShowCorpus(true);    setShowMobileMenu(false) } },
                   { label: "Dataset",  hint: "Eval golden set",        action: () => { setShowDataset(true);   setShowMobileMenu(false) } },
+                  ...(showTeacherTools ? [
+                  { label: "Teacher",  hint: "Question generator",     action: () => { setShowTeacher(true);  setShowMobileMenu(false) } },
+                  ] : []),
                   { label: "TryEval",  hint: "Export endpoint config", action: () => { setShowTryEval(true);  setShowMobileMenu(false) } },
                   { label: "Settings", hint: "API keys",               action: () => { setShowSettings(true); setShowMobileMenu(false) } },
                 ].map(item => (

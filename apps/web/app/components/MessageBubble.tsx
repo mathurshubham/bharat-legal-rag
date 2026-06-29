@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import type { ChatMessage } from "@/lib/types"
@@ -28,6 +29,11 @@ function TypingDots() {
 }
 
 export function MessageBubble({ message, config, accent, onShowSources, activeSources }: Props) {
+  const [copied, setCopied] = useState(false)
+  const copyAnswer = async () => {
+    await navigator.clipboard.writeText(message.content)
+    setCopied(true); setTimeout(() => setCopied(false), 1500)
+  }
   const detectRefusal = (t: string) =>
     config.refusalMarkers.some(m => t.toLowerCase().includes(m))
   const detectGuard = (t: string) =>
@@ -135,19 +141,27 @@ export function MessageBubble({ message, config, accent, onShowSources, activeSo
                 <span className="text-[11px] text-[var(--text-4)]">
                   {(resp.latency.total_ms / 1000).toFixed(1)}s · {resp.usage.total_tokens.toLocaleString()} tokens
                 </span>
-                {resp.retrieved_chunks.length > 0 && (
+                <div className="flex items-center gap-2">
                   <button
-                    onClick={() => onShowSources(message.id)}
-                    className={`text-[11px] font-medium px-2.5 py-1 rounded-md transition-colors ${
-                      sourcesOpen
-                        ? "text-[var(--bg)] bg-[var(--accent)]"
-                        : "text-[var(--text-3)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"
-                    }`}
-                    style={sourcesOpen ? { backgroundColor: "var(--accent)" } : {}}
+                    onClick={copyAnswer}
+                    className="text-[11px] font-medium px-2.5 py-1 rounded-md text-[var(--text-3)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)] transition-colors"
                   >
-                    {sourcesOpen ? "Sources open" : `${resp.retrieved_chunks.length} sources ›`}
+                    {copied ? "Copied ✓" : "Copy"}
                   </button>
-                )}
+                  {resp.retrieved_chunks.length > 0 && (
+                    <button
+                      onClick={() => onShowSources(message.id)}
+                      className={`text-[11px] font-medium px-2.5 py-1 rounded-md transition-colors ${
+                        sourcesOpen
+                          ? "text-[var(--bg)] bg-[var(--accent)]"
+                          : "text-[var(--text-3)] hover:text-[var(--text)] hover:bg-[var(--bg-surface)]"
+                      }`}
+                      style={sourcesOpen ? { backgroundColor: "var(--accent)" } : {}}
+                    >
+                      {sourcesOpen ? "Sources open" : `${resp.retrieved_chunks.length} sources ›`}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           )}

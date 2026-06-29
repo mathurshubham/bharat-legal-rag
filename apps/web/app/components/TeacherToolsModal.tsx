@@ -1,6 +1,8 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
+import ReactMarkdown from "react-markdown"
+import remarkGfm from "remark-gfm"
 import {
   fetchChapters,
   generateQuestions,
@@ -9,6 +11,7 @@ import {
   type LanguageMode,
 } from "@/lib/api"
 import type { Settings } from "@/lib/types"
+import { printHtmlToPdf } from "@/lib/exportPdf"
 
 interface Props {
   demo: string
@@ -186,6 +189,17 @@ function QuestionsTab({ demo, board, settings }: { demo: string; board: string; 
   const [teacherNotes, setTeacherNotes] = useState<string>("")
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<string>("")
+  const [copied, setCopied] = useState(false)
+  const resultRef = useRef<HTMLDivElement>(null)
+
+  const copyResult = async () => {
+    await navigator.clipboard.writeText(result)
+    setCopied(true); setTimeout(() => setCopied(false), 1500)
+  }
+  const downloadPdf = () => {
+    const html = resultRef.current?.innerHTML
+    if (html) printHtmlToPdf(`${board.toUpperCase()} French — ${mode === "exam_paper" ? "Exam paper" : "Practice set"}${chapter ? " — " + chapter : ""}`, html)
+  }
 
   const toggleType = (t: string) =>
     setTypes(types.includes(t) ? types.filter(x => x !== t) : [...types, t])
@@ -307,12 +321,21 @@ function QuestionsTab({ demo, board, settings }: { demo: string; board: string; 
         <div className="mt-4">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-[12px] font-semibold text-[var(--text)]">Question bank</h3>
-            <button onClick={() => navigator.clipboard.writeText(result)}
-              className="text-[11px] text-[var(--text-3)] hover:text-[var(--text)] transition-colors">
-              Copy markdown
-            </button>
+            <div className="flex items-center gap-3">
+              <button onClick={copyResult}
+                className="text-[11px] text-[var(--text-3)] hover:text-[var(--text)] transition-colors">
+                {copied ? "Copied ✓" : "Copy markdown"}
+              </button>
+              <button onClick={downloadPdf}
+                className="text-[11px] text-[var(--text-3)] hover:text-[var(--text)] transition-colors">
+                Download PDF
+              </button>
+            </div>
           </div>
-          <pre className="bg-[var(--bg-card)] border border-[var(--border)] rounded-lg px-3 py-3 text-[12px] text-[var(--text-2)] whitespace-pre-wrap overflow-x-auto leading-relaxed">{result}</pre>
+          <div ref={resultRef}
+            className="prose-answer bg-[var(--bg-card)] border border-[var(--border)] rounded-lg px-4 py-3 text-[13px] text-[var(--text-2)] overflow-x-auto leading-relaxed max-h-[50vh] overflow-y-auto">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{result}</ReactMarkdown>
+          </div>
         </div>
       )}
     </div>
