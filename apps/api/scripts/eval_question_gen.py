@@ -241,10 +241,18 @@ async def run(host: str, judge_model: str, only: str | None, label: str,
         return_exceptions=True,
     )
 
-    dims = ["format_match", "grounding", "level_fit", "answer_key", "chapter_scope", "authenticity", "overall"]
-    sums = {d: 0 for d in dims}
+    core = ["format_match", "grounding", "level_fit", "answer_key", "chapter_scope", "authenticity"]
+    dims = core + ["overall"]
+    sums = {d: 0.0 for d in dims}
     n_ok = 0
     ji = 0
+
+    def _clamp(v) -> int:
+        try:
+            return max(0, min(5, int(v)))
+        except Exception:
+            return 0
+
     for r, g in zip(reqs, gens):
         if isinstance(g, Exception):
             print(f"[{r['id']:<22}] GEN ERROR: {g}")
@@ -256,9 +264,12 @@ async def run(host: str, judge_model: str, only: str | None, label: str,
             rows.append({"id": r["id"], "error": f"judge: {s}", "markdown_head": g["markdown"][:200]})
             continue
         n_ok += 1
+        cl = {d: _clamp(s.get(d, 0)) for d in core}
+        # derive overall as mean of clamped dims — robust to judges emitting off-scale "overall"
+        cl["overall"] = round(sum(cl[d] for d in core) / len(core), 2)
         for d in dims:
-            sums[d] += int(s.get(d, 0))
-        line = " ".join(f"{d[:4]}={s.get(d,'?')}" for d in dims)
+            sums[d] += cl[d]
+        line = " ".join(f"{d[:4]}={cl[d]}" for d in dims)
         print(f"[{r['id']:<22}] {line}  | {s.get('notes','')[:60]}")
         rows.append({"id": r["id"], "request": r, "scores": s, "gen_ms": g["gen_ms"],
                      "markdown": g["markdown"]})
